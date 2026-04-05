@@ -20,6 +20,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     socket.connect();
+    socket.on('new-alert', (alert) => {
+    alert(`🚨 NEW ALERT: ${alert.type.toUpperCase()} in ${alert.region} — ${alert.message}`);
+    });
     socket.emit('join', { role: userData.role });
   };
 

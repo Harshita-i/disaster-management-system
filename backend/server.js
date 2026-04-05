@@ -20,6 +20,7 @@ const io = new Server(server, {
     methods: ['GET', 'POST']
   }
 });
+const sosRoutes = require('./routes/sos');
 
 // Make io accessible in all route controllers via req.io
 app.use((req, res, next) => {
@@ -33,6 +34,7 @@ app.use(express.json()); // parse JSON request bodies
 
 // ─── ROUTES ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/sos', sosRoutes);
 
 // Health check — visit http://localhost:5000/api/health to confirm server is running
 app.get('/api/health', (req, res) => {

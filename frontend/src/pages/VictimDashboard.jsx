@@ -6,45 +6,65 @@ import socket from '../utils/socket';
 export default function VictimDashboard() {
   const { user, logout } = useAuth();
   const [sosStatus, setSosStatus] = useState(null);
-  const [sending, setSending]     = useState(false);
-  const [message, setMessage]     = useState('');
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState('');
+  const [alerts, setAlerts] = useState([]);
 
-  // Listen for status updates from NGO in real-time
+  // Listen for status updates & alerts
   useEffect(() => {
     socket.on('sos-update', (data) => {
       setSosStatus(data.status);
-      setMessage(data.message || '');
+      if (data.message) setMessage(data.message);
     });
 
-    // Fetch existing SOS status on load
-    fetchMyStatus();
+    socket.on('new-alert', (alert) => {
+      setAlerts((prev) => [alert, ...prev]);
+    });
 
-    return () => socket.off('sos-update');
+    fetchMyStatus();
+    fetchAlerts();
+
+    return () => {
+      socket.off('sos-update');
+      socket.off('new-alert');
+    };
   }, []);
 
+  // Victim SOS status from /api/sos/my
   const fetchMyStatus = async () => {
     try {
       const res = await api.get('/sos/my');
-      if (res.data.status) setSosStatus(res.data.status);
+      if (res.data?.status) {
+        setSosStatus(res.data.status);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to fetch SOS status:', err);
     }
   };
 
+  // Alerts from /api/alerts
+  const fetchAlerts = async () => {
+    try {
+      const res = await api.get('/alerts');
+      setAlerts(res.data);
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    }
+  };
+
+  // Victim triggers SOS to /api/sos
   const triggerSOS = async () => {
     setSending(true);
     try {
-      // Get GPS location
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude: lat, longitude: lng } = position.coords;
-
           await api.post('/sos', { lat, lng });
           setSosStatus('pending');
           setMessage('SOS sent! Help is on the way.');
           setSending(false);
         },
-        (error) => {
+        () => {
           alert('Could not get location. Please enable GPS.');
           setSending(false);
         }
@@ -55,37 +75,38 @@ export default function VictimDashboard() {
     }
   };
 
-  // Color based on status
   const statusColor = {
-    pending:     '#f59e0b',
-    assigned:    '#3b82f6',
+    pending: '#f59e0b',
+    assigned: '#3b82f6',
     'in-progress': '#8b5cf6',
-    resolved:    '#10b981'
+    resolved: '#10b981',
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: '#0f172a', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      fontFamily: 'sans-serif',
-      padding: '2rem'
-    }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#0f172a',
+        fontFamily: 'sans-serif',
+        padding: '2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
       {/* Header */}
-      <div style={{ 
-        position: 'absolute', top: 20, right: 20 
-      }}>
-        <button onClick={logout} style={{ 
-          background: 'transparent', 
-          color: '#94a3b8', 
-          border: '1px solid #334155',
-          padding: '8px 16px', 
-          borderRadius: 8, 
-          cursor: 'pointer' 
-        }}>
+      <div style={{ position: 'absolute', top: 20, right: 20 }}>
+        <button
+          onClick={logout}
+          style={{
+            background: 'transparent',
+            color: '#94a3b8',
+            border: '1px solid #334155',
+            padding: '8px 16px',
+            borderRadius: 8,
+            cursor: 'pointer',
+          }}
+        >
           Logout
         </button>
       </div>
@@ -113,30 +134,37 @@ export default function VictimDashboard() {
           cursor: sending ? 'not-allowed' : 'pointer',
           boxShadow: '0 0 60px #dc262688',
           transition: 'all 0.2s',
-          letterSpacing: 4
+          letterSpacing: 4,
         }}
       >
         {sending ? '...' : 'SOS'}
       </button>
 
-      {/* Status */}
+      {/* Rescue Status */}
       {sosStatus && (
-        <div style={{ 
-          marginTop: 40, 
-          padding: '16px 32px', 
-          background: '#1e293b',
-          borderRadius: 12,
-          border: `1px solid ${statusColor[sosStatus] || '#334155'}`,
-          textAlign: 'center'
-        }}>
-          <p style={{ 
-            color: statusColor[sosStatus], 
-            fontSize: 18, 
-            fontWeight: 600,
-            margin: 0,
-            textTransform: 'uppercase',
-            letterSpacing: 2
-          }}>
+        <div
+          style={{
+            marginTop: 40,
+            padding: '16px 32px',
+            background: '#1e293b',
+            borderRadius: 12,
+            border: `1px solid ${statusColor[sosStatus] || '#334155'}`,
+            textAlign: 'center',
+            width: '100%',
+            maxWidth: 400,
+          }}
+        >
+          <h3 style={{ color: '#f1f5f9', margin: '0 0 8px' }}>Rescue Status</h3>
+          <p
+            style={{
+              color: statusColor[sosStatus],
+              fontSize: 18,
+              fontWeight: 600,
+              margin: 0,
+              textTransform: 'uppercase',
+              letterSpacing: 2,
+            }}
+          >
             {sosStatus}
           </p>
           {message && (
@@ -146,6 +174,96 @@ export default function VictimDashboard() {
           )}
         </div>
       )}
+
+      {/* Alerts Panel */}
+      <div
+        style={{
+          marginTop: 40,
+          padding: '16px 32px',
+          background: '#1e293b',
+          borderRadius: 12,
+          border: '1px solid #334155',
+          width: '100%',
+          maxWidth: 600,
+        }}
+      >
+        <h3 style={{ color: '#f1f5f9', margin: '0 0 16px' }}>
+          Alerts Panel
+        </h3>
+        {alerts.length === 0 ? (
+          <p style={{ color: '#64748b' }}>No active alerts</p>
+        ) : (
+          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            {alerts.map((alert) => (
+              <div
+                key={alert._id}
+                style={{
+                  background: '#0f172a',
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 10,
+                  border: '1px solid #334155',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{ fontWeight: 600, textTransform: 'capitalize' }}
+                  >
+                    🌊 {alert.type} — {alert.region}
+                  </span>
+                  <span
+                    style={{
+                      background:
+                        alert.severity === 'critical'
+                          ? '#ef444422'
+                          : alert.severity === 'high'
+                          ? '#f59e0b22'
+                          : '#3b82f622',
+                      color:
+                        alert.severity === 'critical'
+                          ? '#ef4444'
+                          : alert.severity === 'high'
+                          ? '#f59e0b'
+                          : '#3b82f6',
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {alert.severity}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    color: '#94a3b8',
+                    fontSize: 13,
+                    margin: 0,
+                  }}
+                >
+                  {alert.message}
+                </p>
+                <p
+                  style={{
+                    color: '#475569',
+                    fontSize: 11,
+                    margin: '8px 0 0',
+                  }}
+                >
+                  {new Date(alert.createdAt).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

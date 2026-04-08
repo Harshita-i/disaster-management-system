@@ -10,7 +10,6 @@ export default function VictimDashboard() {
   const [message, setMessage] = useState('');
   const [alerts, setAlerts] = useState([]);
 
-  // Listen for status updates & alerts
   useEffect(() => {
     socket.on('sos-update', (data) => {
       setSosStatus(data.status);
@@ -30,7 +29,6 @@ export default function VictimDashboard() {
     };
   }, []);
 
-  // Victim SOS status from /api/sos/my
   const fetchMyStatus = async () => {
     try {
       const res = await api.get('/sos/my');
@@ -42,7 +40,6 @@ export default function VictimDashboard() {
     }
   };
 
-  // Alerts from /api/alerts
   const fetchAlerts = async () => {
     try {
       const res = await api.get('/alerts');
@@ -52,7 +49,6 @@ export default function VictimDashboard() {
     }
   };
 
-  // Victim triggers SOS to /api/sos
   const triggerSOS = async () => {
     setSending(true);
     try {
@@ -94,7 +90,6 @@ export default function VictimDashboard() {
         alignItems: 'center',
       }}
     >
-      {/* Header */}
       <div style={{ position: 'absolute', top: 20, right: 20 }}>
         <button
           onClick={logout}
@@ -118,10 +113,9 @@ export default function VictimDashboard() {
         Press the button below if you need emergency help
       </p>
 
-      {/* SOS Button */}
       <button
         onClick={triggerSOS}
-        disabled={sending || sosStatus === 'pending' || sosStatus === 'assigned'}
+        disabled={sending}
         style={{
           width: 200,
           height: 200,
@@ -140,7 +134,6 @@ export default function VictimDashboard() {
         {sending ? '...' : 'SOS'}
       </button>
 
-      {/* Rescue Status */}
       {sosStatus && (
         <div
           style={{
@@ -175,7 +168,6 @@ export default function VictimDashboard() {
         </div>
       )}
 
-      {/* Alerts Panel */}
       <div
         style={{
           marginTop: 40,

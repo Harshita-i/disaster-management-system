@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
+import SafetyChatbot from '../components/SafetyChatbot'; 
 
 export default function VictimDashboard() {
   const { user, logout } = useAuth();
@@ -256,6 +257,7 @@ export default function VictimDashboard() {
           </div>
         )}
       </div>
+      <SafetyChatbot />
     </div>
   );
 }

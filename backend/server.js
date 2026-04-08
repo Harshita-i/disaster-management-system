@@ -13,6 +13,7 @@ const sosRoutes = require('./routes/sos');
 const alertRoutes = require('./routes/alerts');
 const disasterRoutes = require('./routes/disasters');
 const userRoutes = require('./routes/users'); 
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const server = http.createServer(app); // wrap express in http server for socket.io
@@ -41,6 +42,7 @@ app.use('/api/sos', sosRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/disasters', disasterRoutes);
 app.use('/api/users', userRoutes); 
+app.use('/api/chat', chatRoutes); 
 
 // Health check — visit http://localhost:5001/api/health to confirm server is running
 app.get('/api/health', (req, res) => {

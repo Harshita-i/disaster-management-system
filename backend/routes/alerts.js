@@ -1,57 +1,43 @@
 const express = require('express');
-const router = express.Router();
-const Alert = require('../models/Alert');
-const SOS = require('../models/SOS');
+const router  = express.Router();
+const Alert   = require('../models/Alert');
+const SOS     = require('../models/SOS');
 const { authenticate, authorize } = require('../middleware/auth');
 
-function toRadians(value) {
-  return (value * Math.PI) / 180;
-}
+function toRadians(v) { return (v * Math.PI) / 180; }
 
 function distanceInMeters(lat1, lng1, lat2, lng2) {
-  const earthRadius = 6371000;
-  const deltaLat = toRadians(lat2 - lat1);
-  const deltaLng = toRadians(lng2 - lng1);
-
+  const R = 6371000;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
   const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(deltaLng / 2) *
-      Math.sin(deltaLng / 2);
-
-  return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 async function findSOSInAlertZone(alert) {
   const alertLat = alert.location?.lat;
   const alertLng = alert.location?.lng;
+  if (typeof alertLat !== 'number' || typeof alertLng !== 'number') return [];
 
-  if (typeof alertLat !== 'number' || typeof alertLng !== 'number') {
-    return [];
-  }
-
-  const radius = alert.radius || 5000;
-
+  const radius  = alert.radius || 5000;
   const sosList = await SOS.find({
     status: { $ne: 'resolved' },
-    'location.lat': { $ne: null },
-    'location.lng': { $ne: null }
+    'location.lat': { $exists: true },
+    'location.lng': { $exists: true }
   });
 
-  return sosList.filter((sos) => {
-    const sosLat = sos.location?.lat;
-    const sosLng = sos.location?.lng;
-
-    if (typeof sosLat !== 'number' || typeof sosLng !== 'number') {
-      return false;
-    }
-
-    return distanceInMeters(sosLat, sosLng, alertLat, alertLng) <= radius;
+  return sosList.filter(sos => {
+    const lat = sos.location?.lat;
+    const lng = sos.location?.lng;
+    if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+    return distanceInMeters(lat, lng, alertLat, alertLng) <= radius;
   });
 }
 
-// GET /api/alerts — all alerts (any logged-in user)
+// ─── GET /api/alerts ─────────────────────────────────────
 router.get('/', authenticate, async (req, res) => {
   try {
     const alerts = await Alert.find().sort({ createdAt: -1 });
@@ -61,7 +47,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/alerts — create alert (admin only)
+// ─── POST /api/alerts — admin creates + broadcasts ───────
 router.post('/', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { type, region, message, severity, location, radius } = req.body;
@@ -71,19 +57,25 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     }
 
     const alert = await Alert.create({
-      type,
-      region,
-      message,
-      severity,
-      location,
-      radius
+      type, region, message, severity,
+      location: location || null,
+      radius:   radius   || 5000
     });
 
-    req.io.to('victim').emit('new-alert', alert);
-    req.io.to('ngo').emit('new-alert', alert);
+    // Convert to plain object so location/radius are included in socket payload
+    const alertObj = alert.toObject();
 
-    if (alert.severity === 'critical' && alert.location?.lat != null && alert.location?.lng != null) {
-      const affectedSOS = await findSOSInAlertZone(alert);
+    // Broadcast to all roles
+    req.io.to('victim').emit('new-alert', alertObj);
+    req.io.to('ngo').emit('new-alert', alertObj);
+    req.io.to('admin').emit('new-alert', alertObj);
+
+    // ── Upgrade victims inside this zone to RED ───────────
+    if (
+      alertObj.location?.lat != null &&
+      alertObj.location?.lng != null
+    ) {
+      const affectedSOS = await findSOSInAlertZone(alertObj);
 
       for (const sos of affectedSOS) {
         if (sos.priority !== 'red') {
@@ -93,19 +85,25 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
             { new: true }
           );
 
-          req.io.to('ngo').emit('sos-updated', { sos: updatedSOS });
-          req.io.to('admin').emit('sos-updated', { sos: updatedSOS });
+          const updatedObj = updatedSOS.toObject();
+
+          // Push update to NGO map immediately
+          req.io.to('ngo').emit('sos-updated', { sos: updatedObj });
+          req.io.to('admin').emit('sos-updated', { sos: updatedObj });
+
+          console.log(`Upgraded SOS ${sos._id} to RED (inside alert zone)`);
         }
       }
     }
 
-    res.status(201).json({ alert });
+    res.status(201).json({ alert: alertObj });
   } catch (err) {
+    console.error('Alert creation failed:', err.message);
     res.status(500).json({ message: 'Failed to create alert', error: err.message });
   }
 });
 
-// DELETE /api/alerts/:id — delete alert (admin only)
+// ─── DELETE /api/alerts/:id ───────────────────────────────
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     await Alert.findByIdAndDelete(req.params.id);

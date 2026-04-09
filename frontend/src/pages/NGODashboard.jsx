@@ -72,8 +72,12 @@ function normalizeSOSList(list) {
 
 function upsertSOS(prev, sos) {
   const key = String(sos.userId || sos._id);
-  const withoutSameVictim = prev.filter((item) => String(item.userId || item._id) !== key);
-  return normalizeSOSList([sos, ...withoutSameVictim]);
+  const without = prev.filter(
+    (item) =>
+      String(item.userId || item._id) !== key &&
+      String(item._id) !== String(sos._id)
+  );
+  return normalizeSOSList([sos, ...without]);
 }
 
 export default function NGODashboard() {
@@ -111,8 +115,12 @@ export default function NGODashboard() {
     });
 
     socket.on('new-alert', (alert) => {
-      setAlerts((prev) => [alert, ...prev]);
-    });
+  setAlerts((prev) => {
+    const exists = prev.some(a => String(a._id) === String(alert._id));
+    if (exists) return prev;
+    return [alert, ...prev];
+  });
+});
 
     return () => {
       socket.off('new-sos');
@@ -135,13 +143,13 @@ export default function NGODashboard() {
   };
 
   const fetchAlerts = async () => {
-    try {
-      const res = await api.get('/alerts');
-      setAlerts(res.data);
-    } catch (err) {
-      console.error('Failed to fetch alerts:', err);
-    }
-  };
+  try {
+    const res = await api.get('/alerts');
+    setAlerts(res.data); // always full list from DB
+  } catch (err) {
+    console.error('Failed to fetch alerts:', err);
+  }
+};
 
   const acceptSOS = async (sosId) => {
     setAssignError('');

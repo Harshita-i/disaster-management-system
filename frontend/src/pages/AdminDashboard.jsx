@@ -24,7 +24,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAll();
     socket.on('new-sos', (sos) => setSosList(prev => [sos, ...prev]));
-    return () => socket.off('new-sos');
+    socket.on('sos-list-updated', (updatedList) => setSosList(normalizeSOSList(updatedList)));
+    socket.on('user-deleted', () => fetchAll());
+    return () => {
+      socket.off('new-sos');
+      socket.off('sos-list-updated');
+      socket.off('user-deleted');
+    };
   }, []);
 
   const fetchAll = async () => {
@@ -63,6 +69,17 @@ export default function AdminDashboard() {
         prev.map(u => u._id === userId ? { ...u, blocked: true } : u)
       );
     } catch (err) { alert('Failed to block'); }
+  };
+
+  const deleteUser = async (userId) => {
+    if (!window.confirm('Delete this user permanently? SOS records will also be cleared.')) return;
+    try {
+      await api.delete(`/users/${userId}`);
+      setUsers(prev => prev.filter(u => u._id !== userId));
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete user';
+      alert(msg);
+    }
   };
 
   // ── ALERT ACTIONS ─────────────────────────────────────
@@ -136,24 +153,24 @@ export default function AdminDashboard() {
   const tabs = ['overview', 'users', 'alerts', 'analytics'];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', fontFamily: 'sans-serif', color: 'var(--text-primary)' }}>
 
       {/* ── TOP BAR ─────────────────────────────────── */}
       <div style={{
-        background: '#1e293b', borderBottom: '1px solid #334155',
+        background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)',
         padding: '12px 24px', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between'
       }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>🛠️ Admin Control Center</h2>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ color: '#64748b', fontSize: 14 }}>{user?.name}</span>
+  color: 'var(--text-secondary)', fontSize: 14
           <button onClick={logout} style={btn('#334155')}>Logout</button>
         </div>
       </div>
 
       {/* ── TABS ────────────────────────────────────── */}
       <div style={{
-        background: '#1e293b', borderBottom: '1px solid #334155',
+        background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)',
         padding: '0 24px', display: 'flex', gap: 4
       }}>
         {tabs.map(tab => (

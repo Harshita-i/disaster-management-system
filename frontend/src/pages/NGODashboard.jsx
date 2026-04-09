@@ -122,12 +122,21 @@ export default function NGODashboard() {
   });
 });
 
+    socket.on('user-deleted', (deletedUserId) => {
+      setSosList(prev => prev.filter(sos => String(sos.userId) !== deletedUserId));
+    });
+
+    socket.on('sos-list-updated', (updatedList) => {
+      setSosList(normalizeSOSList(updatedList));
+    });
+
     return () => {
       socket.off('new-sos');
       socket.off('sos-updated');
       socket.off('sos-assigned');
       socket.off('sos-status-updated');
       socket.off('new-alert');
+      socket.off('sos-list-updated');
     };
   }, []);
 
@@ -208,11 +217,11 @@ export default function NGODashboard() {
   const mapCenter = [20.5937, 78.9629];
 
   return (
-    <div style={{
+  <div style={{
       minHeight: '100vh',
-      background: '#0f172a',
+      background: 'var(--bg-primary)',
       fontFamily: 'sans-serif',
-      color: '#f1f5f9'
+      color: 'var(--text-primary)'
     }}>
       <div style={{
         background: '#1e293b',
@@ -222,7 +231,7 @@ export default function NGODashboard() {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>🚑 NGO Rescue Dashboard</h2>
+        <h2 style={{ margin: 0, fontSize: 18, color: '#ffffff' }}>🚑 NGO Rescue Dashboard</h2>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <span style={{ color: '#64748b', fontSize: 14 }}>{user?.name}</span>
           <button onClick={logout} style={btnStyle('#334155')}>Logout</button>
@@ -270,7 +279,7 @@ export default function NGODashboard() {
           height: 560
         }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: 0, fontSize: 15 }}>🗺️ Live Rescue Map</h3>
+            <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#ffffff' }}>🗺️ Live Rescue Map</h3>
           </div>
           <MapContainer
             center={mapCenter}
@@ -365,7 +374,7 @@ export default function NGODashboard() {
           height: 560
         }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 15 }}>🚨 SOS Requests</h3>
+            <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#ffffff' }}>🚨 SOS Requests</h3>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {['all', 'pending', 'red', 'yellow', 'green', 'assigned'].map(f => (
                 <button
@@ -547,19 +556,20 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
     <div
       onClick={() => !locked && setSelected(isSelected ? null : sos)}
       style={{
-        background: isSelected ? '#0f172a' : '#0f172a55',
-        border: `1px solid ${isSelected ? PRIORITY_COLORS[sos.priority] : '#334155'}`,
-        borderLeft: `3px solid ${PRIORITY_COLORS[sos.priority]}`,
+        background: sos.status === 'resolved' ? 'rgba(16,185,129,0.2)' : sos.priority === 'yellow' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+        border: `1px solid ${isSelected ? PRIORITY_COLORS[sos.priority] : 'var(--border-light)'}`,
+        borderLeft: `4px solid ${sos.status === 'resolved' ? '#10b981' : sos.priority === 'yellow' ? '#f59e0b' : '#ef4444'}`,
         borderRadius: 10,
         padding: 12,
         marginBottom: 8,
         cursor: locked ? 'not-allowed' : 'pointer',
         opacity: locked ? 0.5 : 1,
-        transition: 'all 0.15s'
+        transition: 'all 0.15s',
+        color: '#ffffff'
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>{sos.name}</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: '#ffffff' }}>{sos.name}</span>
         <span style={{
           background: `${PRIORITY_COLORS[sos.priority]}22`,
           color: PRIORITY_COLORS[sos.priority],
@@ -627,7 +637,7 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
             </button>
           )}
           <button
-            onClick={e => { e.stopPropagation(); }}
+            onClick={e => { e.stopPropagation(); setSelected(null); }}
             style={btnStyle('#475569')}
           >
             Close

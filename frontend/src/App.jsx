@@ -34,7 +34,7 @@ export default function App() {
           }/>
 
           <Route path="/unauthorized" element={
-            <div style={{ color: 'white', padding: 40, background: '#0f172a', minHeight: '100vh' }}>
+            <div style={{ color: '#000000', padding: 40, background: 'var(--bg-card)', minHeight: '100vh' }}>
               <h1>403 - Access Denied</h1>
               <p>You don't have permission to view this page.</p>
             </div>

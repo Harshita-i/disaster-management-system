@@ -18,6 +18,8 @@ function distanceInMeters(lat1, lng1, lat2, lng2) {
 }
 
 async function findSOSInAlertZone(alert) {
+  if (!['high', 'critical'].includes(alert.severity)) return [];
+
   const alertLat = alert.location?.lat;
   const alertLng = alert.location?.lng;
   if (typeof alertLat !== 'number' || typeof alertLng !== 'number') return [];
@@ -35,6 +37,37 @@ async function findSOSInAlertZone(alert) {
     if (typeof lat !== 'number' || typeof lng !== 'number') return false;
     return distanceInMeters(lat, lng, alertLat, alertLng) <= radius;
   });
+}
+
+async function updateAllSOSPriorities() {
+  const alertZones = await Alert.find({
+    severity: { $in: ['high', 'critical'] },
+    'location.lat': { $ne: null },
+    'location.lng': { $ne: null }
+  });
+
+  const allSOS = await SOS.find({ status: { $ne: 'resolved' } });
+  const updates = [];
+
+  for (const sos of allSOS) {
+    const inZone = alertZones.some((alert) => {
+      const distance = distanceInMeters(
+        sos.location.lat,
+        sos.location.lng,
+        alert.location.lat,
+        alert.location.lng
+      );
+      return distance <= (alert.radius || 5000);
+    });
+
+    const newPriority = inZone ? 'red' : 'yellow';
+    if (sos.priority !== newPriority) {
+      sos.priority = newPriority;
+      updates.push(sos.save());
+    }
+  }
+
+  await Promise.all(updates);
 }
 
 // ─── GET /api/alerts ─────────────────────────────────────
@@ -70,31 +103,11 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     req.io.to('ngo').emit('new-alert', alertObj);
     req.io.to('admin').emit('new-alert', alertObj);
 
-    // ── Upgrade victims inside this zone to RED ───────────
-    if (
-      alertObj.location?.lat != null &&
-      alertObj.location?.lng != null
-    ) {
-      const affectedSOS = await findSOSInAlertZone(alertObj);
-
-      for (const sos of affectedSOS) {
-        if (sos.priority !== 'red') {
-          const updatedSOS = await SOS.findByIdAndUpdate(
-            sos._id,
-            { priority: 'red' },
-            { new: true }
-          );
-
-          const updatedObj = updatedSOS.toObject();
-
-          // Push update to NGO map immediately
-          req.io.to('ngo').emit('sos-updated', { sos: updatedObj });
-          req.io.to('admin').emit('sos-updated', { sos: updatedObj });
-
-          console.log(`Upgraded SOS ${sos._id} to RED (inside alert zone)`);
-        }
-      }
-    }
+    // Recalculate all active SOS priorities after creating a new alert.
+    await updateAllSOSPriorities();
+    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } });
+    req.io.to('ngo').emit('sos-list-updated', updatedSOS);
+    req.io.to('admin').emit('sos-list-updated', updatedSOS);
 
     res.status(201).json({ alert: alertObj });
   } catch (err) {
@@ -107,6 +120,10 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     await Alert.findByIdAndDelete(req.params.id);
+    await updateAllSOSPriorities();
+    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } });
+    req.io.to('ngo').emit('sos-list-updated', updatedSOS);
+    req.io.to('admin').emit('sos-list-updated', updatedSOS);
     res.json({ message: 'Alert deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete alert' });

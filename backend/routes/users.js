@@ -29,4 +29,25 @@ router.patch('/:id/block', authenticate, authorize('admin'), async (req, res) =>
   res.json({ message: 'User blocked', user });
 });
 
+// Delete user
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
+  if (req.user.id === req.params.id) {
+    return res.status(400).json({ message: 'Cannot delete yourself' });
+  }
+
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  // Delete user's SOS requests
+  await SOS.deleteMany({ userId: req.params.id });
+  
+  // Emit to all dashboards to refetch SOS list
+  req.io.to('ngo').emit('sos-list-updated');
+  req.io.to('admin').emit('sos-list-updated');
+
+  res.json({ message: 'User deleted' });
+});
+
 module.exports = router;

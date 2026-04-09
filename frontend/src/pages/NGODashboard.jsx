@@ -125,7 +125,7 @@ export default function NGODashboard() {
 
   const fetchSOS = async () => {
     try {
-      const res = await api.get('/sos');
+      const res = await api.get('/sos?showAll=true');
       setSosList(normalizeSOSList(res.data));
     } catch (err) {
       console.error('Failed to fetch SOS:', err);
@@ -175,7 +175,7 @@ export default function NGODashboard() {
   const counts = {
     total: sosList.length,
     pending: sosList.filter((s) => s.status === 'pending').length,
-    red: sosList.filter((s) => s.priority === 'red').length,
+    red: sosList.filter((s) => s.priority === 'red' && s.status !== 'resolved').length,
     resolved: sosList.filter((s) => s.status === 'resolved').length
   };
 
@@ -308,17 +308,17 @@ export default function NGODashboard() {
                   center={[sos.location.lat, sos.location.lng]}
                   radius={12}
                   fillColor={
-                    sos.priority === 'red'
-                      ? '#ef4444'
-                      : sos.status === 'resolved'
+                    sos.status === 'resolved'
                       ? '#10b981'
+                      : sos.priority === 'red'
+                      ? '#ef4444'
                       : PRIORITY_COLORS[sos.priority]
                   }
                   color={
-                    sos.priority === 'red'
-                      ? '#ef4444'
-                      : sos.status === 'resolved'
+                    sos.status === 'resolved'
                       ? '#10b981'
+                      : sos.priority === 'red'
+                      ? '#ef4444'
                       : PRIORITY_COLORS[sos.priority]
                   }
                   fillOpacity={0.85}

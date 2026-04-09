@@ -105,8 +105,8 @@ export default function SafetyChatbot() {
             🛡️ Safety Assistant
           </div>
           <div style={{ fontSize: 11, color: '#9ca3af' }}>
-            Powered by Gemini (safety questions only)
-          </div>
+          Powered by Claude (safety questions only)
+       </div>
         </div>
         <button
           onClick={() => setOpen(false)}

@@ -15,17 +15,37 @@ export default function AdminDashboard() {
   const [users, setUsers]         = useState([]);
   const [alerts, setAlerts]       = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [predictions, setPredictions] = useState([]);
 
   const [alertForm, setAlertForm] = useState({
     type: 'flood', region: '', message: '',
     severity: 'moderate', lat: '', lng: '', radius: ''
   });
 
+  // useEffect(() => {
+  //   fetchAll();
+  //   socket.on('new-sos', (sos) => setSosList(prev => [sos, ...prev]));
+  //   return () => socket.off('new-sos');
+  // }, []);
+
   useEffect(() => {
-    fetchAll();
-    socket.on('new-sos', (sos) => setSosList(prev => [sos, ...prev]));
-    return () => socket.off('new-sos');
-  }, []);
+  fetchAll();
+  fetchPredictions();
+
+  socket.on('new-sos', (sos) => setSosList((prev) => [sos, ...prev]));
+  socket.on('new-alert', (alert) => {
+    setAlerts((prev) =>
+      prev.some((item) => String(item._id) === String(alert._id))
+        ? prev
+        : [alert, ...prev]
+    );
+  });
+
+  return () => {
+    socket.off('new-sos');
+    socket.off('new-alert');
+  };
+}, []);
 
   const fetchAll = async () => {
     try {
@@ -46,6 +66,26 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
+  const fetchPredictions = async () => {
+  try {
+    const res = await api.get('/predictions');
+    setPredictions(res.data.predictions || []);
+
+    if (res.data.autoAlerts?.length) {
+      setAlerts((prev) => {
+        const next = [...prev];
+        res.data.autoAlerts.forEach((alert) => {
+          if (!next.some((item) => String(item._id) === String(alert._id))) {
+            next.unshift(alert);
+          }
+        });
+        return next;
+      });
+    }
+  } catch (err) {
+    console.error('Prediction fetch failed:', err.response?.data || err.message);
+  }
+};
   // ── USER ACTIONS ──────────────────────────────────────
   const approveNGO = async (userId) => {
     try {
@@ -96,6 +136,29 @@ export default function AdminDashboard() {
     }
   };
 
+  const prefillAlertFromPrediction = (prediction) => {
+  const severity =
+    prediction.risk_score > 0.85
+      ? 'critical'
+      : prediction.risk_score > 0.65
+        ? 'high'
+        : prediction.risk_score > 0.45
+          ? 'moderate'
+          : 'low';
+
+  setAlertForm({
+    type: 'flood',
+    region: prediction.region,
+    message: `ML risk score ${Number(prediction.risk_score).toFixed(2)} for ${prediction.region}. Priority: ${prediction.priority}. Flood predicted: ${prediction.flood_predicted ? 'yes' : 'no'}.`,
+    severity,
+    lat: prediction.lat ? String(prediction.lat) : '',
+    lng: prediction.lng ? String(prediction.lng) : '',
+    radius: prediction.risk_score > 0.85 ? '10000' : '5000'
+  });
+
+  setActiveTab('alerts');
+};
+
   const deleteAlert = async (alertId) => {
     try {
       await api.delete(`/alerts/${alertId}`);
@@ -133,7 +196,8 @@ export default function AdminDashboard() {
     { label: 'Pending NGOs', value: users.filter(u => u.role === 'ngo' && !u.approved).length, color: '#ec4899' }
   ];
 
-  const tabs = ['overview', 'users', 'alerts', 'analytics'];
+  // const tabs = ['overview', 'users', 'alerts', 'analytics'];
+  const tabs = ['overview', 'predictions', 'users', 'alerts', 'analytics'];
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' }}>
@@ -224,6 +288,102 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+     {/* predictions tab */}
+      {activeTab === 'predictions' && (
+  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16 }}>
+    <div style={chartCard}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16
+      }}>
+        <h3 style={{ margin: 0, fontSize: 15 }}>🧠 ML Predictions</h3>
+        <button onClick={fetchPredictions} style={btn('#334155')}>
+          Refresh
+        </button>
+      </div>
+
+      {predictions.length === 0 ? (
+        <p style={{ color: '#64748b' }}>No predictions loaded</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {predictions.map((p) => (
+            <div
+              key={p.region}
+              style={{
+                background: '#0f172a',
+                borderRadius: 10,
+                padding: 12,
+                border: `1px solid ${p.risk_score > 0.85 ? '#ef4444' : p.risk_score > 0.65 ? '#f59e0b' : '#334155'}`
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                alignItems: 'flex-start'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{p.region}</div>
+                  <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
+                    Model: {p.model_used} | Rainfall: {p.rainfall_mm} mm | River: {p.river_level_m} m
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <Badge
+                    color={
+                      p.risk_score > 0.85
+                        ? '#ef4444'
+                        : p.risk_score > 0.65
+                          ? '#f59e0b'
+                          : '#10b981'
+                    }
+                    text={`score ${Number(p.risk_score).toFixed(2)}`}
+                  />
+                  <div style={{ marginTop: 6 }}>
+                    <Badge
+                      color={
+                        p.priority === 'critical'
+                          ? '#ef4444'
+                          : p.priority === 'high'
+                            ? '#f59e0b'
+                            : p.priority === 'moderate'
+                              ? '#3b82f6'
+                              : '#10b981'
+                      }
+                      text={p.priority}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => prefillAlertFromPrediction(p)}
+                  style={btn('#3b82f6')}
+                >
+                  Prefill Alert
+                </button>
+                {p.risk_score > 0.85 && (
+                  <Badge color="#ef4444" text="Auto alert" />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <div style={chartCard}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>Hybrid Flow</h3>
+      <p style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.6 }}>
+        Predictions are shown here first. The admin verifies them, clicks Prefill Alert, reviews the message, and sends the alert manually. Only scores above 0.85 create an automatic critical alert once.
+      </p>
+    </div>
+  </div>
+)}
 
         {/* ── USERS TAB ───────────────────────────── */}
         {activeTab === 'users' && (

@@ -1,22 +1,20 @@
-# Node
 node_modules/
 .env
 
 # Python
 ml_model/venv/
-__pycache__/
-*.pyc
 
-# ML models (heavy files)
+
+# ML models
 *.h5
 *.keras
 *.pkl
 *.joblib
 
-# Data files
+# Data
 *.csv
 *.json
 
-# OS / misc
+# Misc
 .DS_Store
 Thumbs.db

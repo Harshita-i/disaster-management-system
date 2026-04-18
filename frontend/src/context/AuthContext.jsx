@@ -15,16 +15,30 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  // const login = (token, userData) => {
+  //   localStorage.setItem('token', token);
+  //   localStorage.setItem('user', JSON.stringify(userData));
+  //   setUser(userData);
+  //   socket.connect();
+  //   socket.on('new-alert', (alert) => {
+  //   alert(`🚨 NEW ALERT: ${alert.type.toUpperCase()} in ${alert.region} — ${alert.message}`);
+  //   });
+  //   socket.emit('join', { role: userData.role });
+  // };
+
   const login = (token, userData) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    socket.connect();
-    socket.on('new-alert', (alert) => {
-    alert(`🚨 NEW ALERT: ${alert.type.toUpperCase()} in ${alert.region} — ${alert.message}`);
-    });
-    socket.emit('join', { role: userData.role });
-  };
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(userData));
+  setUser(userData);
+  socket.connect();
+  socket.off('new-alert');
+  socket.on('new-alert', (incomingAlert) => {
+    window.alert(
+      `🚨 NEW ALERT: ${incomingAlert.type.toUpperCase()} in ${incomingAlert.region} — ${incomingAlert.message}`
+    );
+  });
+  socket.emit('join', { role: userData.role });
+};
 
   const logout = () => {
     localStorage.removeItem('token');

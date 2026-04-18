@@ -51,45 +51,34 @@ export default function AdminDashboard() {
     };
   }, []);
 
- const fetchAll = async () => {
-  try {
-    console.log("Fetching users, sos, alerts...");
+  const fetchAll = async () => {
+    try {
+      const sosRes = await api.get('/sos');
+      const userRes = await api.get('/users');
+      const alertRes = await api.get('/alerts');
 
-    const sosRes = await api.get('/sos');
-    console.log("SOS RES:", sosRes.data);
-
-    const userRes = await api.get('/users');
-    console.log("USER RES:", userRes.data);
-
-    const alertRes = await api.get('/alerts');
-    console.log("ALERT RES:", alertRes.data);
-
-    setSosList(sosRes.data || []);
-    setUsers(userRes.data || []);
-    setAlerts(alertRes.data || []);
-  } catch (err) {
-    console.error("FETCH ERROR:", err.response?.data || err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      setSosList(sosRes.data || []);
+      setUsers(userRes.data || []);
+      setAlerts(alertRes.data || []);
+    } catch (err) {
+      console.error('FETCH ERROR:', err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchPredictions = async () => {
-  try {
-    console.log("Fetching predictions...");
+    try {
+      setFloodPredictions([]);
 
-    setFloodPredictions([]);
+      const eqRes = await fetch('http://localhost:5003/predictions');
+      const eqData = await eqRes.json();
 
-    const eqRes = await fetch('http://localhost:5003/predictions');
-    const eqData = await eqRes.json();
-
-    console.log("Earthquake:", eqData);
-
-    setEarthquakePredictions(eqData.predictions || []);
-  } catch (err) {
-    console.error('Prediction fetch failed:', err);
-  }
-};
+      setEarthquakePredictions(eqData.predictions || []);
+    } catch (err) {
+      console.error('Prediction fetch failed:', err);
+    }
+  };
 
   const approveNGO = async (userId) => {
     try {
@@ -548,8 +537,7 @@ export default function AdminDashboard() {
             <div style={chartCard}>
               <h3 style={{ marginBottom: 10 }}>Hybrid System</h3>
               <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                Flood and earthquake predictions are combined here.
-                Admin verifies and sends alerts.
+                Flood and earthquake predictions are combined here. Admin verifies and sends alerts.
               </p>
             </div>
           </div>

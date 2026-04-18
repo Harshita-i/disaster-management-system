@@ -6,7 +6,8 @@ import joblib
 import json
 import requests
 from datetime import datetime
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
 
 app = Flask(__name__)
 CORS(app)
@@ -15,7 +16,26 @@ print("Loading models...")
 
 # ── LOAD MODELS ─────────────────────────────────────────
 rf_model   = joblib.load('rf_model.pkl')
-lstm_model = load_model('lstm_model.h5')
+with open('metadata.json') as f:
+    metadata = json.load(f)
+
+FEATURES = metadata['features']
+SEQUENCE_LEN = metadata['sequence_length']
+lstm_model = Sequential([
+    LSTM(64, return_sequences=True, input_shape=(SEQUENCE_LEN, len(FEATURES))),
+    Dropout(0.2),
+    LSTM(32),
+    Dropout(0.2),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+lstm_model.build((None, SEQUENCE_LEN, len(FEATURES)))
+lstm_model.load_weights("flood_lstm_weights.weights.h5")
+
+
+lstm_model.build((None, SEQUENCE_LEN, len(FEATURES)))
+lstm_model.load_weights("flood_lstm_weights.weights.h5")
 scaler     = joblib.load('scaler.pkl')
 
 with open('metadata.json') as f:

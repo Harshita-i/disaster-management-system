@@ -67,7 +67,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchPredictions = async () => {
+  /*const fetchPredictions = async () => {
     try {
       setFloodPredictions([]);
 
@@ -78,7 +78,21 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Prediction fetch failed:', err);
     }
-  };
+  }; */
+
+  const fetchPredictions = async () => {
+  try {
+    const floodRes = await fetch('http://localhost:5002/predictions');
+    const floodData = await floodRes.json();
+    setFloodPredictions(floodData.predictions || floodData || []);
+
+    const eqRes = await fetch('http://localhost:5003/predictions');
+    const eqData = await eqRes.json();
+    setEarthquakePredictions(eqData.predictions || eqData || []);
+  } catch (err) {
+    console.error('Prediction fetch failed:', err);
+  }
+};
 
   const approveNGO = async (userId) => {
     try {

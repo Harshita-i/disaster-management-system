@@ -1,2 +1,22 @@
+# Node
 node_modules/
 .env
+
+# Python
+ml_model/venv/
+__pycache__/
+*.pyc
+
+# ML models (heavy files)
+*.h5
+*.keras
+*.pkl
+*.joblib
+
+# Data files
+*.csv
+*.json
+
+# OS / misc
+.DS_Store
+Thumbs.db

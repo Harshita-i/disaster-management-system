@@ -6,7 +6,7 @@
     "themeUseDark": "Tema oscuro"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "Crea tu cuenta",
     "subtitleLogin": "Inicia sesión para continuar",
     "errorGeneric": "Algo salió mal",
@@ -25,9 +25,9 @@
     "toggleRegister": "Registrarse"
   },
   "networkBg": {
-    "labelSos": "SOS",
+    "labelSos": "Víctima",
     "labelNgo": "ONG",
-    "tooltipSos": "Señal SOS detectada",
+    "tooltipSos": "Víctima o civil que reporta una emergencia",
     "tooltipNgo": "Respuesta activada"
   },
   "victim": {
@@ -60,6 +60,7 @@
     "mapDanger": "Zona de peligro",
     "type": "Tipo",
     "severity": "Gravedad",
-    "region": "Región"
+    "region": "Región",
+    "messageLabel": "Mensaje"
   }
 }

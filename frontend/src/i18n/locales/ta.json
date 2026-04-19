@@ -6,7 +6,7 @@
     "themeUseDark": "இருண்ட தோற்றம்"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "உங்கள் கணக்கை உருவாக்கவும்",
     "subtitleLogin": "தொடர உள்நுழையவும்",
     "errorGeneric": "ஏதோ தவறு நடந்தது",
@@ -25,9 +25,9 @@
     "toggleRegister": "பதிவு"
   },
   "networkBg": {
-    "labelSos": "SOS",
+    "labelSos": "பாதிக்கப்பட்டவர்",
     "labelNgo": "என்ஜிஓ",
-    "tooltipSos": "SOS சமிக்ஞை கண்டறியப்பட்டது",
+    "tooltipSos": "அவசர உதவி கோரும் பாதிக்கப்பட்டவர் அல்லது பொதுமக்கள்",
     "tooltipNgo": "பதில் தொடங்கியது"
   },
   "victim": {
@@ -60,6 +60,7 @@
     "mapDanger": "ஆபத்து மண்டலம்",
     "type": "வகை",
     "severity": "தீவிரம்",
-    "region": "பகுதி"
+    "region": "பகுதி",
+    "messageLabel": "செய்தி"
   }
 }

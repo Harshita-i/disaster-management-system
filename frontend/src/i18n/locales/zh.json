@@ -6,7 +6,7 @@
     "themeUseDark": "深色主题"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "创建账户",
     "subtitleLogin": "登录以继续",
     "errorGeneric": "出了点问题",
@@ -25,9 +25,9 @@
     "toggleRegister": "注册"
   },
   "networkBg": {
-    "labelSos": "求救",
+    "labelSos": "受灾者",
     "labelNgo": "NGO",
-    "tooltipSos": "检测到求救信号",
+    "tooltipSos": "受灾者或市民报告紧急情况",
     "tooltipNgo": "响应已启动"
   },
   "victim": {
@@ -60,6 +60,7 @@
     "mapDanger": "危险区域",
     "type": "类型",
     "severity": "严重程度",
-    "region": "地区"
+    "region": "地区",
+    "messageLabel": "说明"
   }
 }

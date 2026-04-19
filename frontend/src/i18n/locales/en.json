@@ -6,7 +6,7 @@
     "themeUseDark": "Use dark theme"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "Create your account",
     "subtitleLogin": "Sign in to continue",
     "errorGeneric": "Something went wrong",
@@ -25,9 +25,9 @@
     "toggleRegister": "Register"
   },
   "networkBg": {
-    "labelSos": "SOS",
+    "labelSos": "Victim",
     "labelNgo": "NGO",
-    "tooltipSos": "SOS signal detected",
+    "tooltipSos": "Victim / civilian reporting an emergency",
     "tooltipNgo": "Response activated"
   },
   "victim": {
@@ -68,7 +68,8 @@
     "mapDanger": "Danger zone",
     "type": "Type",
     "severity": "Severity",
-    "region": "Region"
+    "region": "Region",
+    "messageLabel": "Message"
   },
   "ngo": {
     "sosPanelTitle": "SOS requests",

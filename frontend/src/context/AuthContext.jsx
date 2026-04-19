@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import i18n from '../i18n/config';
 import socket from '../utils/socket';
 import { translateStrings } from '../utils/dynamicTranslate';
+import { showMultilingualNewAlert } from '../utils/alertNotifications';
 
 const AuthContext = createContext();
 
@@ -25,21 +26,8 @@ export function AuthProvider({ children }) {
     }
     socket.emit('join', { role: user.role });
 
-    const onNewAlert = async (alert) => {
-      const title = i18n.t('alert.browserTitle');
-      try {
-        const lang = i18n.language;
-        const [typeT, regionT, messageT] = await translateStrings(
-          [String(alert.type ?? ''), String(alert.region ?? ''), String(alert.message ?? '')],
-          lang
-        );
-        const line = `${String(typeT).toUpperCase()} — ${regionT}\n${messageT}`;
-        window.alert(`${title}\n\n${line}`);
-      } catch {
-        window.alert(
-          `${title}\n\n${String(alert.type ?? '').toUpperCase()} — ${alert.region ?? ''}\n${alert.message ?? ''}`
-        );
-      }
+    const onNewAlert = (alert) => {
+      void showMultilingualNewAlert(alert, translateStrings);
     };
 
     socket.on('new-alert', onNewAlert);

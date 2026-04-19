@@ -288,7 +288,7 @@ export default function VictimDashboard() {
           <span className="vx-brand-mark" aria-hidden>
             ◎
           </span>
-          <span>DisasterAlert</span>
+          <span>{t('login.brand')}</span>
         </div>
         <div className="vx-nav-actions">
           <ThemeToggle />

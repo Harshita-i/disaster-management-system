@@ -6,7 +6,7 @@
     "themeUseDark": "డార్క్ థీమ్"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "మీ ఖాతాను సృష్టించండి",
     "subtitleLogin": "కొనసాగించడానికి సైన్ ఇన్ చేయండి",
     "errorGeneric": "ఏదో తప్పు జరిగింది",
@@ -25,9 +25,9 @@
     "toggleRegister": "నమోదు"
   },
   "networkBg": {
-    "labelSos": "SOS",
+    "labelSos": "బాధితుడు",
     "labelNgo": "ఎన్‌జీఓ",
-    "tooltipSos": "SOS సంకేతం గుర్తించబడింది",
+    "tooltipSos": "బాధితుడు లేదా పౌరుడు అత్యవసరాన్ని నివేదిస్తున్నారు",
     "tooltipNgo": "ప్రతిస్పందన ప్రారంభమైంది"
   },
   "victim": {
@@ -60,6 +60,7 @@
     "mapDanger": "ప్రమాద మండలం",
     "type": "రకం",
     "severity": "తీవ్రత",
-    "region": "ప్రాంతం"
+    "region": "ప్రాంతం",
+    "messageLabel": "సందేశం"
   }
 }

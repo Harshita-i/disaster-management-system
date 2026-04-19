@@ -6,7 +6,7 @@
     "themeUseDark": "गहरा थीम"
   },
   "login": {
-    "brand": "DisasterAlert",
+    "brand": "CrisisConnect",
     "subtitleRegister": "अपना खाता बनाएँ",
     "subtitleLogin": "जारी रखने के लिए साइन इन करें",
     "errorGeneric": "कुछ गलत हो गया",
@@ -25,9 +25,9 @@
     "toggleRegister": "पंजीकरण"
   },
   "networkBg": {
-    "labelSos": "एसओएस",
+    "labelSos": "पीड़ित",
     "labelNgo": "एनजीओ",
-    "tooltipSos": "एसओएस संकेत मिला",
+    "tooltipSos": "पीड़ित या नागरिक आपातकाल की सूचना दे रहा है",
     "tooltipNgo": "प्रतिक्रिया सक्रिय"
   },
   "victim": {
@@ -60,6 +60,7 @@
     "mapDanger": "खतरे का क्षेत्र",
     "type": "प्रकार",
     "severity": "गंभीरता",
-    "region": "क्षेत्र"
+    "region": "क्षेत्र",
+    "messageLabel": "संदेश"
   }
 }

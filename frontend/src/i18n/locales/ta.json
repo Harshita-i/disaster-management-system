@@ -52,5 +52,12 @@
   "dashboard": {
     "ngoTitle": "என்ஜிஓ / மீட்பு டாஷ்போர்டு",
     "adminTitle": "நிர்வாக டாஷ்போர்டு"
+  },
+  "alert": {
+    "browserTitle": "புதிய பேரிடர் எச்சரிக்கை",
+    "mapDanger": "ஆபத்து மண்டலம்",
+    "type": "வகை",
+    "severity": "தீவிரம்",
+    "region": "பகுதி"
   }
 }

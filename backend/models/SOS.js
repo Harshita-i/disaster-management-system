@@ -28,6 +28,8 @@ const sosSchema = new mongoose.Schema({
     default: null 
   },
   message:   { type: String },
+  /** Increments on each manual SOS press while this request is open; >1 forces red priority. */
+  manualTriggerCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 

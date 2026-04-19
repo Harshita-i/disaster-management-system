@@ -9,14 +9,16 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 
 export default function AdminDashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [sosList, setSosList]     = useState([]);
   const [users, setUsers]         = useState([]);
   const [alerts, setAlerts]       = useState([]);
+  const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
   const [loading, setLoading]     = useState(true);
 
   const [alertForm, setAlertForm] = useState({
@@ -156,68 +158,51 @@ export default function AdminDashboard() {
   const tabs = ['overview', 'users', 'alerts', 'analytics'];
 
   return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', fontFamily: 'sans-serif', color: 'var(--text-primary)' }}>
-
-      {/* ── TOP BAR ─────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)',
-        padding: '12px 24px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between'
-      }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>🛠️ {t('dashboard.adminTitle')}</h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="app-dashboard">
+      <header className="dash-header">
+        <h2>🛠️ {t('dashboard.adminTitle')}</h2>
+        <div className="dash-header-actions">
           <LanguageSwitcher compact />
-          <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{user?.name}</span>
-          <button onClick={logout} style={btn('#334155')}>{t('common.logout')}</button>
+          {user?.name && <span className="user-pill">{user.name}</span>}
+          <button type="button" className="btn btn-ghost btn-xs" onClick={logout}>
+            {t('common.logout')}
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* ── TABS ────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)',
-        padding: '0 24px', display: 'flex', gap: 4
-      }}>
-        {tabs.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} style={{
-            padding: '12px 20px', background: 'transparent', border: 'none',
-            borderBottom: activeTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
-            color: activeTab === tab ? '#3b82f6' : '#64748b',
-            cursor: 'pointer', fontSize: 14,
-            textTransform: 'capitalize',
-            fontWeight: activeTab === tab ? 600 : 400
-          }}>
+      <nav className="admin-tabs">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={`admin-tab${activeTab === tab ? ' is-active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
             {tab}
           </button>
         ))}
-      </div>
+      </nav>
 
-      <div style={{ padding: 24 }}>
+      <div className="dash-main">
 
         {/* ── OVERVIEW TAB ────────────────────────── */}
         {activeTab === 'overview' && (
           <div>
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 12, marginBottom: 24
-            }}>
-              {kpis.map(k => (
-                <div key={k.label} style={{
-                  background: '#1e293b', border: `1px solid ${k.color}33`,
-                  borderRadius: 12, padding: 20, textAlign: 'center'
-                }}>
-                  <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>{k.label}</p>
-                  <p style={{ margin: '6px 0 0', fontSize: 32, fontWeight: 700, color: k.color }}>
-                    {k.value}
-                  </p>
+            <div className="dash-stat-grid" style={{ marginBottom: '1.5rem' }}>
+              {kpis.map((k) => (
+                <div
+                  key={k.label}
+                  className="stat-card"
+                  style={{ '--card-accent': k.color, textAlign: 'center' }}
+                >
+                  <p className="stat-card-label">{k.label}</p>
+                  <p className="stat-card-value">{k.value}</p>
                 </div>
               ))}
             </div>
 
-            <div style={{
-              background: '#1e293b', borderRadius: 12,
-              border: '1px solid #334155', padding: 20
-            }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>Recent SOS Requests</h3>
+            <div className="chart-card">
+              <h3 style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 600 }}>Recent SOS Requests</h3>
               {loading ? (
                 <p style={{ color: '#64748b' }}>Loading...</p>
               ) : sosList.length === 0 ? (
@@ -248,39 +233,33 @@ export default function AdminDashboard() {
 
         {/* ── USERS TAB ───────────────────────────── */}
         {activeTab === 'users' && (
-          <div style={{
-            background: '#1e293b', borderRadius: 12,
-            border: '1px solid #334155', overflow: 'hidden'
-          }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #334155' }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>👥 User Management</h3>
+          <div className="data-table-wrap">
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>👥 User Management</h3>
             </div>
             {loading ? (
-              <p style={{ color: '#64748b', padding: 20 }}>Loading...</p>
+              <p className="empty-hint" style={{ padding: '1.25rem' }}>Loading…</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="data-table">
                 <thead>
-                  <tr style={{ background: '#0f172a' }}>
-                    {['Name', 'Email', 'Role', 'Status', 'Actions'].map(h => (
-                      <th key={h} style={{
-                        padding: '12px 16px', textAlign: 'left',
-                        fontSize: 12, color: '#64748b', fontWeight: 600
-                      }}>{h}</th>
+                  <tr>
+                    {['Name', 'Email', 'Role', 'Status', 'Actions'].map((h) => (
+                      <th key={h}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
-                    <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
-                      <td style={td}>{u.name}</td>
-                      <td style={{ ...td, color: '#64748b' }}>{u.email}</td>
-                      <td style={td}>
+                  {users.map((u) => (
+                    <tr key={u._id}>
+                      <td>{u.name}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
+                      <td>
                         <Badge
                           color={u.role === 'admin' ? '#8b5cf6' : u.role === 'ngo' ? '#3b82f6' : '#10b981'}
                           text={u.role}
                         />
                       </td>
-                      <td style={td}>
+                      <td>
                         {u.blocked
                           ? <Badge color="#ef4444" text="Blocked" />
                           : u.role === 'ngo' && !u.approved
@@ -288,15 +267,15 @@ export default function AdminDashboard() {
                             : <Badge color="#10b981" text="Active" />
                         }
                       </td>
-                      <td style={td}>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {u.role === 'ngo' && !u.approved && !u.blocked && (
-                            <button onClick={() => approveNGO(u._id)} style={btn('#16a34a')}>
+                            <button type="button" className="btn btn-xs btn-success" onClick={() => approveNGO(u._id)}>
                               Approve
                             </button>
                           )}
                           {!u.blocked && u.role !== 'admin' && (
-                            <button onClick={() => blockUser(u._id)} style={btn('#dc2626')}>
+                            <button type="button" className="btn btn-xs btn-danger" onClick={() => blockUser(u._id)}>
                               Block
                             </button>
                           )}
@@ -312,31 +291,26 @@ export default function AdminDashboard() {
 
         {/* ── ALERTS TAB ──────────────────────────── */}
         {activeTab === 'alerts' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-            {/* Create Alert */}
-            <div style={{
-              background: '#1e293b', borderRadius: 12,
-              border: '1px solid #334155', padding: 20
-            }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>⚠️ Create Alert</h3>
+          <div className="chart-grid">
+            <div className="chart-card">
+              <h3 style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 600 }}>⚠️ Create Alert</h3>
 
               <select
+                className="form-control"
                 value={alertForm.type}
-                onChange={e => setAlertForm({ ...alertForm, type: e.target.value })}
-                style={input}
+                onChange={(e) => setAlertForm({ ...alertForm, type: e.target.value })}
               >
-                {['flood','earthquake','cyclone','fire','tsunami','landslide'].map(t => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {['flood', 'earthquake', 'cyclone', 'fire', 'tsunami', 'landslide'].map((ty) => (
+                  <option key={ty} value={ty}>
+                    {ty.charAt(0).toUpperCase() + ty.slice(1)}
                   </option>
                 ))}
               </select>
 
               <select
+                className="form-control"
                 value={alertForm.severity}
-                onChange={e => setAlertForm({ ...alertForm, severity: e.target.value })}
-                style={input}
+                onChange={(e) => setAlertForm({ ...alertForm, severity: e.target.value })}
               >
                 <option value="low">Low</option>
                 <option value="moderate">Moderate</option>
@@ -345,60 +319,56 @@ export default function AdminDashboard() {
               </select>
 
               <input
+                className="form-control"
                 placeholder="Affected region (e.g. Hyderabad, Telangana)"
                 value={alertForm.region}
-                onChange={e => setAlertForm({ ...alertForm, region: e.target.value })}
-                style={input}
+                onChange={(e) => setAlertForm({ ...alertForm, region: e.target.value })}
               />
 
               <textarea
+                className="form-control"
                 placeholder="Alert message / evacuation instructions..."
                 value={alertForm.message}
-                onChange={e => setAlertForm({ ...alertForm, message: e.target.value })}
+                onChange={(e) => setAlertForm({ ...alertForm, message: e.target.value })}
                 rows={3}
-                style={{ ...input, resize: 'vertical' }}
               />
 
-              {/* Danger zone coordinates */}
-              <p style={{ color: '#64748b', fontSize: 12, margin: '0 0 8px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0 0 0.5rem' }}>
                 📍 Danger zone on map (optional)
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <input
+                  className="form-control"
+                  style={{ marginBottom: 0 }}
                   placeholder="Latitude (e.g. 17.3850)"
                   value={alertForm.lat}
-                  onChange={e => setAlertForm({ ...alertForm, lat: e.target.value })}
-                  style={{ ...input, marginBottom: 0 }}
+                  onChange={(e) => setAlertForm({ ...alertForm, lat: e.target.value })}
                   type="number"
                   step="any"
                 />
                 <input
+                  className="form-control"
+                  style={{ marginBottom: 0 }}
                   placeholder="Longitude (e.g. 78.4867)"
                   value={alertForm.lng}
-                  onChange={e => setAlertForm({ ...alertForm, lng: e.target.value })}
-                  style={{ ...input, marginBottom: 0 }}
+                  onChange={(e) => setAlertForm({ ...alertForm, lng: e.target.value })}
                   type="number"
                   step="any"
                 />
               </div>
 
               <input
+                className="form-control"
+                style={{ marginTop: '0.5rem' }}
                 placeholder="Danger zone radius in meters (e.g. 10000)"
                 value={alertForm.radius}
-                onChange={e => setAlertForm({ ...alertForm, radius: e.target.value })}
-                style={{ ...input, marginTop: 8 }}
+                onChange={(e) => setAlertForm({ ...alertForm, radius: e.target.value })}
                 type="number"
               />
 
-              <button onClick={createAlert} style={{
-                ...btn('#dc2626'),
-                width: '100%',
-                padding: '12px',
-                fontSize: 14,
-                marginTop: 4
-              }}>
-                🔔 Broadcast Alert
+              <button type="button" className="btn btn-danger" style={{ width: '100%', marginTop: '0.35rem', padding: '0.65rem' }} onClick={createAlert}>
+                Broadcast Alert
               </button>
             </div>
 
@@ -411,7 +381,7 @@ export default function AdminDashboard() {
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📋 Active Alerts</h3>
               {alerts.length === 0
                 ? <p style={{ color: '#64748b' }}>No alerts yet</p>
-                : alerts.map(a => (
+                : translatedAlerts.map(a => (
                   <div key={a._id} style={{
                     background: '#0f172a', borderRadius: 8,
                     padding: 12, marginBottom: 10,
@@ -423,18 +393,18 @@ export default function AdminDashboard() {
                          a.type === 'earthquake' ? '🌍' :
                          a.type === 'cyclone' ? '🌀' :
                          a.type === 'fire' ? '🔥' :
-                         a.type === 'tsunami' ? '🌊' : '⚠️'} {a.type} — {a.region}
+                         a.type === 'tsunami' ? '🌊' : '⚠️'} {a._tr?.type ?? a.type} — {a._tr?.region ?? a.region}
                       </span>
                       <Badge
                         color={
                           a.severity === 'critical' ? '#ef4444' :
                           a.severity === 'high'     ? '#f59e0b' : '#3b82f6'
                         }
-                        text={a.severity}
+                        text={a._tr?.severity ?? a.severity}
                       />
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 8px' }}>
-                      {a.message}
+                      {a._tr?.message ?? a.message}
                     </p>
                     {a.location?.lat && (
                       <p style={{ color: '#475569', fontSize: 11, margin: '0 0 6px' }}>
@@ -445,7 +415,7 @@ export default function AdminDashboard() {
                       <span style={{ color: '#475569', fontSize: 11 }}>
                         {new Date(a.createdAt).toLocaleString()}
                       </span>
-                      <button onClick={() => deleteAlert(a._id)} style={btn('#7f1d1d')}>
+                      <button type="button" className="btn btn-xs btn-danger" onClick={() => deleteAlert(a._id)}>
                         Delete
                       </button>
                     </div>
@@ -458,9 +428,8 @@ export default function AdminDashboard() {
 
         {/* ── ANALYTICS TAB ───────────────────────── */}
         {activeTab === 'analytics' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-            <div style={chartCard}>
+          <div className="chart-grid">
+            <div className="chart-card">
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📈 SOS Last 7 Days</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={sosPerDay}>
@@ -472,7 +441,7 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
 
-            <div style={chartCard}>
+            <div className="chart-card">
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📊 SOS by Status</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={statusData}>
@@ -484,7 +453,7 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
 
-            <div style={chartCard}>
+            <div className="chart-card">
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>🔴 Priority Breakdown</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -504,7 +473,7 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
 
-            <div style={chartCard}>
+            <div className="chart-card">
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>👥 User Roles</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={[
@@ -556,26 +525,3 @@ function Badge({ color, text }) {
     </span>
   );
 }
-
-const btn = (bg) => ({
-  padding: '6px 14px', background: bg, color: 'white',
-  border: 'none', borderRadius: 6, fontSize: 12,
-  cursor: 'pointer', fontWeight: 500
-});
-
-const td = {
-  padding: '12px 16px', fontSize: 14,
-  background: '#0f172a', color: '#f1f5f9'
-};
-
-const input = {
-  width: '100%', padding: '10px 12px', marginBottom: 12,
-  background: '#0f172a', border: '1px solid #334155',
-  borderRadius: 8, color: '#f1f5f9', fontSize: 14,
-  boxSizing: 'border-box'
-};
-
-const chartCard = {
-  background: '#1e293b', borderRadius: 12,
-  border: '1px solid #334155', padding: 20
-};

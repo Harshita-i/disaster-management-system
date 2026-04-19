@@ -52,5 +52,12 @@
   "dashboard": {
     "ngoTitle": "ಎನ್‌ಜಿಓ / ರಕ್ಷಣಾ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
     "adminTitle": "ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್"
+  },
+  "alert": {
+    "browserTitle": "ಹೊಸ ವಿಪತ್ತು ಎಚ್ಚರಿಕೆ",
+    "mapDanger": "ಅಪಾಯದ ವಲಯ",
+    "type": "ವಿಧ",
+    "severity": "ತೀವ್ರತೆ",
+    "region": "ಪ್ರದೇಶ"
   }
 }

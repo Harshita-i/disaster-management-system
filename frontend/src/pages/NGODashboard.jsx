@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapContainer, TileLayer, CircleMarker, Circle, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 import 'leaflet/dist/leaflet.css';
 
 const PRIORITY_COLORS = {
@@ -82,66 +84,37 @@ function upsertSOS(prev, sos) {
   return normalizeSOSList([sos, ...without]);
 }
 
+const ngoBaseIcon = L.divIcon({
+  className: 'map-marker-ngo',
+  html:
+    '<div class="map-marker-ngo-inner"><span class="map-marker-ngo-glyph">🛡</span><span class="map-marker-ngo-tag">NGO</span></div>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+  popupAnchor: [0, -20],
+});
+
 export default function NGODashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [sosList, setSosList] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
+  const [ngoBases, setNgoBases] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [assignError, setAssignError] = useState('');
 
-  useEffect(() => {
-    fetchSOS();
-    fetchAlerts();
+  const mapCenter = useMemo(() => [20.5937, 78.9629], []);
 
-    socket.on('new-sos', (sos) => {
-      setSosList((prev) => upsertSOS(prev, sos));
-    });
-
-    socket.on('sos-updated', ({ sos }) => {
-      if (!sos) return;
-      setSosList((prev) => upsertSOS(prev, sos));
-    });
-
-    socket.on('sos-assigned', ({ sosId }) => {
-      setSosList((prev) =>
-        prev.map((s) => (s._id === sosId ? { ...s, status: 'assigned' } : s))
-      );
-    });
-
-    socket.on('sos-status-updated', ({ sosId, status }) => {
-      setSosList((prev) =>
-        prev.map((s) => (s._id === sosId ? { ...s, status } : s))
-      );
-    });
-
-    socket.on('new-alert', (alert) => {
-  setAlerts((prev) => {
-    const exists = prev.some(a => String(a._id) === String(alert._id));
-    if (exists) return prev;
-    return [alert, ...prev];
-  });
-});
-
-    socket.on('user-deleted', (deletedUserId) => {
-      setSosList(prev => prev.filter(sos => String(sos.userId) !== deletedUserId));
-    });
-
-    socket.on('sos-list-updated', (updatedList) => {
-      setSosList(normalizeSOSList(updatedList));
-    });
-
-    return () => {
-      socket.off('new-sos');
-      socket.off('sos-updated');
-      socket.off('sos-assigned');
-      socket.off('sos-status-updated');
-      socket.off('new-alert');
-      socket.off('sos-list-updated');
-    };
-  }, []);
+  const fetchNgoBases = async () => {
+    try {
+      const res = await api.get('/users/ngo-bases');
+      setNgoBases(res.data || []);
+    } catch (e) {
+      console.error('NGO bases fetch failed:', e);
+    }
+  };
 
   const fetchSOS = async () => {
     try {
@@ -155,13 +128,83 @@ export default function NGODashboard() {
   };
 
   const fetchAlerts = async () => {
-  try {
-    const res = await api.get('/alerts');
-    setAlerts(res.data); // always full list from DB
-  } catch (err) {
-    console.error('Failed to fetch alerts:', err);
-  }
-};
+    try {
+      const res = await api.get('/alerts');
+      setAlerts(res.data);
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role !== 'ngo') return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        api
+          .patch('/users/me/location', {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          })
+          .then(() => fetchNgoBases())
+          .catch(() => {});
+      },
+      () => {},
+      { maximumAge: 600000, timeout: 20000 }
+    );
+  }, [user?.role, user?.id]);
+
+  useEffect(() => {
+    fetchSOS();
+    fetchAlerts();
+    fetchNgoBases();
+
+    socket.on('new-sos', (sos) => {
+      setSosList((prev) => upsertSOS(prev, sos));
+    });
+
+    socket.on('sos-updated', ({ sos }) => {
+      if (!sos) return;
+      setSosList((prev) => upsertSOS(prev, sos));
+    });
+
+    socket.on('sos-assigned', ({ sosId }) => {
+      setSosList((prev) =>
+        prev.map((s) => (s._id === sosId ? { ...s, status: 'assigned', assignedTo: user?.id } : s))
+      );
+    });
+
+    socket.on('sos-status-updated', ({ sosId, status }) => {
+      setSosList((prev) =>
+        prev.map((s) => (s._id === sosId ? { ...s, status } : s))
+      );
+    });
+
+    socket.on('new-alert', (alert) => {
+      setAlerts((prev) => {
+        const exists = prev.some((a) => String(a._id) === String(alert._id));
+        if (exists) return prev;
+        return [alert, ...prev];
+      });
+    });
+
+    socket.on('user-deleted', (deletedUserId) => {
+      setSosList((prev) => prev.filter((sos) => String(sos.userId) !== deletedUserId));
+    });
+
+    socket.on('sos-list-updated', (updatedList) => {
+      setSosList(normalizeSOSList(updatedList));
+    });
+
+    return () => {
+      socket.off('new-sos');
+      socket.off('sos-updated');
+      socket.off('sos-assigned');
+      socket.off('sos-status-updated');
+      socket.off('new-alert');
+      socket.off('sos-list-updated');
+      socket.off('user-deleted');
+    };
+  }, []);
 
   const acceptSOS = async (sosId) => {
     setAssignError('');
@@ -217,85 +260,54 @@ export default function NGODashboard() {
     return false;
   };
 
-  const mapCenter = [20.5937, 78.9629];
-
   return (
-  <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-primary)',
-      fontFamily: 'sans-serif',
-      color: 'var(--text-primary)'
-    }}>
-      <div style={{
-        background: '#1e293b',
-        borderBottom: '1px solid #334155',
-        padding: '12px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#ffffff' }}>🚑 {t('dashboard.ngoTitle')}</h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="app-dashboard">
+      <header className="dash-header">
+        <h2>🚑 {t('dashboard.ngoTitle')}</h2>
+        <div className="dash-header-actions">
           <LanguageSwitcher compact />
-          <span style={{ color: '#64748b', fontSize: 14 }}>{user?.name}</span>
-          <button onClick={logout} style={btnStyle('#334155')}>{t('common.logout')}</button>
+          {user?.name && <span className="user-pill">{user.name}</span>}
+          <button type="button" className="btn btn-ghost btn-xs" onClick={logout}>
+            {t('common.logout')}
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 12,
-        padding: '16px 24px'
-      }}>
-        {[
-          { label: 'Total SOS', value: counts.total, color: '#3b82f6' },
-          { label: 'Pending', value: counts.pending, color: '#f59e0b' },
-          { label: 'Critical', value: counts.red, color: '#ef4444' },
-          { label: 'Resolved', value: counts.resolved, color: '#10b981' }
-        ].map(card => (
-          <div key={card.label} style={{
-            background: '#1e293b',
-            border: `1px solid ${card.color}33`,
-            borderRadius: 12,
-            padding: 16,
-            textAlign: 'center'
-          }}>
-            <p style={{ margin: 0, color: '#64748b', fontSize: 12 }}>{card.label}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 700, color: card.color }}>
-              {card.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      <div className="dash-main">
+        <div className="dash-stat-grid">
+          {[
+            { label: 'Total SOS', value: counts.total, color: '#3b82f6' },
+            { label: 'Pending', value: counts.pending, color: '#f59e0b' },
+            { label: 'Critical', value: counts.red, color: '#ef4444' },
+            { label: 'Resolved', value: counts.resolved, color: '#10b981' },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="stat-card"
+              style={{ '--card-accent': card.color }}
+            >
+              <p className="stat-card-label">{card.label}</p>
+              <p className="stat-card-value">{card.value}</p>
+            </div>
+          ))}
+        </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 400px',
-        gap: 16,
-        padding: '0 24px 24px'
-      }}>
-        <div style={{
-          background: '#1e293b',
-          borderRadius: 12,
-          border: '1px solid #334155',
-          overflow: 'hidden',
-          height: 560
-        }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#ffffff' }}>🗺️ Live Rescue Map</h3>
-          </div>
-          <MapContainer
-            center={mapCenter}
-            zoom={5}
-            style={{ height: '510px', width: '100%' }}
-          >
+        <div className="dash-two-col">
+          <div className="dash-panel dash-map-wrap">
+            <div className="dash-panel-header">
+              <h3>🗺️ Live Rescue Map</h3>
+            </div>
+            <MapContainer
+              center={mapCenter}
+              zoom={5}
+              style={{ height: '100%', width: '100%', flex: 1, minHeight: 400 }}
+            >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap"
             />
 
-            {alerts.map(alert =>
+            {translatedAlerts.map(alert =>
               alert.location?.lat && alert.location?.lng ? (
                 <Circle
                   key={alert._id}
@@ -311,14 +323,45 @@ export default function NGODashboard() {
                 >
                   <Popup>
                     <div style={{ minWidth: 180 }}>
-                      <strong>⚠️ Danger Zone</strong><br />
-                      Type: <b>{alert.type}</b><br />
-                      Severity: <b>{alert.severity}</b><br />
-                      Region: {alert.region}<br />
-                      <span style={{ fontSize: 12 }}>{alert.message}</span>
+                      <strong>⚠️ {t('alert.mapDanger')}</strong><br />
+                      {t('alert.type')}: <b>{alert._tr?.type ?? alert.type}</b><br />
+                      {t('alert.severity')}: <b>{alert._tr?.severity ?? alert.severity}</b><br />
+                      {t('alert.region')}: {alert._tr?.region ?? alert.region}<br />
+                      <span style={{ fontSize: 12 }}>{alert._tr?.message ?? alert.message}</span>
                     </div>
                   </Popup>
                 </Circle>
+              ) : null
+            )}
+
+            {ngoBases.map((ngo) =>
+              ngo.location?.lat != null && ngo.location?.lng != null ? (
+                <Marker
+                  key={`ngo-base-${ngo._id}`}
+                  position={[ngo.location.lat, ngo.location.lng]}
+                  icon={ngoBaseIcon}
+                >
+                  <Popup>
+                    <div style={{ minWidth: 168 }}>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          letterSpacing: '0.08em',
+                          color: '#6366f1',
+                          marginBottom: 6,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Responder base
+                      </div>
+                      <strong style={{ fontSize: 14 }}>{ngo.ngoName || ngo.name}</strong>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                        Approved NGO · not a distress signal
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
               ) : null
             )}
 
@@ -369,31 +412,16 @@ export default function NGODashboard() {
           </MapContainer>
         </div>
 
-        <div style={{
-          background: '#1e293b',
-          borderRadius: 12,
-          border: '1px solid #334155',
-          display: 'flex',
-          flexDirection: 'column',
-          height: 560
-        }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#ffffff' }}>🚨 SOS Requests</h3>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {['all', 'pending', 'red', 'yellow', 'green', 'assigned'].map(f => (
+        <div className="dash-panel" style={{ minHeight: 400, height: 'min(560px, 62vh)' }}>
+          <div className="dash-panel-header">
+            <h3>🚨 SOS Requests</h3>
+            <div className="filter-pills">
+              {['all', 'pending', 'red', 'yellow', 'green', 'assigned'].map((f) => (
                 <button
                   key={f}
+                  type="button"
+                  className={`filter-pill${filter === f ? ' is-active' : ''}`}
                   onClick={() => setFilter(f)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 20,
-                    border: 'none',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    background: filter === f ? '#3b82f6' : '#334155',
-                    color: 'white',
-                    textTransform: 'capitalize'
-                  }}
                 >
                   {f}
                 </button>
@@ -401,47 +429,46 @@ export default function NGODashboard() {
             </div>
           </div>
 
-          <div style={{ overflowY: 'auto', flex: 1, padding: 8 }}>
+          <div className="sos-list-scroll">
             {assignError && (
-              <div style={{
-                background: '#7f1d1d',
-                border: '1px solid #ef4444',
-                borderRadius: 8,
-                padding: '10px 12px',
-                marginBottom: 8,
-                fontSize: 12,
-                color: '#fca5a5',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start'
-              }}>
+              <div
+                style={{
+                  background: 'rgba(127, 29, 29, 0.45)',
+                  border: '1px solid rgba(248, 113, 113, 0.45)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.65rem 0.85rem',
+                  margin: '0 0 0.5rem',
+                  fontSize: '0.75rem',
+                  color: '#fecaca',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                }}
+              >
                 <span>⚠️ {assignError}</span>
                 <button
+                  type="button"
+                  className="chat-close"
                   onClick={() => setAssignError('')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#fca5a5',
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    lineHeight: 1,
-                    marginLeft: 8
-                  }}
-                >✕</button>
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
             {loading ? (
-              <p style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>
-                Loading...
+              <p className="empty-hint" style={{ textAlign: 'center', padding: '1.5rem' }}>
+                Loading…
               </p>
             ) : sosList.length === 0 ? (
-              <p style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>
+              <p className="empty-hint" style={{ textAlign: 'center', padding: '1.5rem' }}>
                 No SOS requests yet
               </p>
             ) : filter !== 'all' ? (
               filtered.length === 0 ? (
-                <p style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>
+                <p className="empty-hint" style={{ textAlign: 'center', padding: '1.5rem' }}>
                   No results for this filter
                 </p>
               ) : (
@@ -523,30 +550,33 @@ export default function NGODashboard() {
             )}
           </div>
         </div>
-      </div>
+        </div>
 
-      <div style={{
-        display: 'flex',
-        gap: 20,
-        padding: '0 24px 24px',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ color: '#64748b', fontSize: 13 }}>Map legend:</span>
-        {Object.entries(PRIORITY_COLORS).map(([key, color]) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 12, height: 12, borderRadius: '50%', background: color }} />
-            <span style={{ color: '#94a3b8', fontSize: 13, textTransform: 'capitalize' }}>
-              {key} priority
-            </span>
+        <div className="dash-legend">
+          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Map legend</span>
+          {Object.entries(PRIORITY_COLORS).map(([key, color]) => (
+            <div key={key} className="dash-legend-item">
+              <span className="dash-legend-dot" style={{ background: color }} />
+              <span style={{ textTransform: 'capitalize' }}>{key} priority</span>
+            </div>
+          ))}
+          <div className="dash-legend-item">
+            <span
+              className="dash-legend-dot"
+              style={{
+                background: 'rgba(248, 113, 113, 0.25)',
+                border: '2px dashed #f87171',
+              }}
+            />
+            <span>Danger zone</span>
           </div>
-        ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: 14, height: 14, borderRadius: '50%',
-            background: '#ef444422', border: '2px dashed #ef4444'
-          }} />
-          <span style={{ color: '#94a3b8', fontSize: 13 }}>Danger zone</span>
+          <div className="dash-legend-item">
+            <span
+              className="dash-legend-ngo"
+              title="NGO base"
+            />
+            <span>NGO base (responder)</span>
+          </div>
         </div>
       </div>
     </div>
@@ -558,22 +588,31 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (!locked && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          setSelected(isSelected ? null : sos);
+        }
+      }}
+      className={`sos-card-ui${locked ? ' is-locked' : ''}`}
       onClick={() => !locked && setSelected(isSelected ? null : sos)}
       style={{
-        background: sos.status === 'resolved' ? 'rgba(16,185,129,0.2)' : sos.priority === 'yellow' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
-        border: `1px solid ${isSelected ? PRIORITY_COLORS[sos.priority] : 'var(--border-light)'}`,
+        background:
+          sos.status === 'resolved'
+            ? 'rgba(16,185,129,0.12)'
+            : sos.priority === 'yellow'
+              ? 'rgba(245,158,11,0.12)'
+              : 'rgba(239,68,68,0.12)',
+        border: `1px solid ${isSelected ? PRIORITY_COLORS[sos.priority] : 'var(--border)'}`,
         borderLeft: `4px solid ${sos.status === 'resolved' ? '#10b981' : sos.priority === 'yellow' ? '#f59e0b' : '#ef4444'}`,
-        borderRadius: 10,
-        padding: 12,
         marginBottom: 8,
-        cursor: locked ? 'not-allowed' : 'pointer',
-        opacity: locked ? 0.5 : 1,
-        transition: 'all 0.15s',
-        color: '#ffffff'
+        color: 'var(--text)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ fontWeight: 600, fontSize: 14, color: '#ffffff' }}>{sos.name}</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>{sos.name}</span>
         <span style={{
           background: `${PRIORITY_COLORS[sos.priority]}22`,
           color: PRIORITY_COLORS[sos.priority],
@@ -610,39 +649,50 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
       )}
 
       {isSelected && !locked && (
-        <div style={{
-          marginTop: 10,
-          display: 'flex', gap: 6, flexWrap: 'wrap',
-          borderTop: '1px solid #334155',
-          paddingTop: 10
-        }}>
+        <div className="sos-card-actions">
           {sos.status === 'pending' && (
             <button
-              onClick={e => { e.stopPropagation(); acceptSOS(sos._id); }}
-              style={btnStyle('#16a34a')}
+              type="button"
+              className="btn btn-xs btn-success"
+              onClick={(e) => {
+                e.stopPropagation();
+                acceptSOS(sos._id);
+              }}
             >
-              ✅ Accept & Assign
+              Accept
             </button>
           )}
           {sos.status === 'assigned' && (
             <button
-              onClick={e => { e.stopPropagation(); updateStatus(sos._id, 'in-progress'); }}
-              style={btnStyle('#7c3aed')}
+              type="button"
+              className="btn btn-xs btn-violet"
+              onClick={(e) => {
+                e.stopPropagation();
+                updateStatus(sos._id, 'in-progress');
+              }}
             >
-              🔄 In Progress
+              In progress
             </button>
           )}
           {sos.status === 'in-progress' && (
             <button
-              onClick={e => { e.stopPropagation(); updateStatus(sos._id, 'resolved'); }}
-              style={btnStyle('#0891b2')}
+              type="button"
+              className="btn btn-xs btn-cyan"
+              onClick={(e) => {
+                e.stopPropagation();
+                updateStatus(sos._id, 'resolved');
+              }}
             >
-              ✔ Mark Resolved
+              Resolved
             </button>
           )}
           <button
-            onClick={e => { e.stopPropagation(); setSelected(null); }}
-            style={btnStyle('#475569')}
+            type="button"
+            className="btn btn-xs btn-slate"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelected(null);
+            }}
           >
             Close
           </button>
@@ -651,14 +701,3 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
     </div>
   );
 }
-
-const btnStyle = (bg) => ({
-  padding: '6px 12px',
-  background: bg,
-  color: 'white',
-  border: 'none',
-  borderRadius: 6,
-  fontSize: 12,
-  cursor: 'pointer',
-  fontWeight: 500
-});

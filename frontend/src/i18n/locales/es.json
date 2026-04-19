@@ -52,5 +52,12 @@
   "dashboard": {
     "ngoTitle": "Panel ONG / rescate",
     "adminTitle": "Panel de administración"
+  },
+  "alert": {
+    "browserTitle": "Nueva alerta de desastre",
+    "mapDanger": "Zona de peligro",
+    "type": "Tipo",
+    "severity": "Gravedad",
+    "region": "Región"
   }
 }

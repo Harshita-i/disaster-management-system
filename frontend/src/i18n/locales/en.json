@@ -29,8 +29,14 @@
     "tooltipNgo": "Response activated"
   },
   "victim": {
-    "welcome": "Welcome, {{name}}",
-    "intro": "Emergency buttons below. Voice SOS listens continuously for help words in your selected language (e.g. help, SOS, danger — and equivalents).",
+    "welcome": "{{name}}",
+    "intro": "Tap SOS to alert responders. Press again while your request is open to escalate priority. Voice mode listens for help words in your language.",
+    "kicker": "Emergency lifeline",
+    "cardManualTitle": "Manual alert",
+    "cardManualDesc": "Broadcasts your GPS to all teams. Each extra press while help is pending raises priority to critical.",
+    "cardVoiceTitle": "Voice listen",
+    "cardVoiceDesc": "Hands-free. Say help, SOS, or local equivalents — we detect them automatically.",
+    "escalated": "Signal escalated — responders see you as critical priority.",
     "manualSos": "Manual SOS",
     "sending": "SENDING...",
     "sos": "SOS",
@@ -52,5 +58,12 @@
   "dashboard": {
     "ngoTitle": "NGO / Rescue dashboard",
     "adminTitle": "Admin dashboard"
+  },
+  "alert": {
+    "browserTitle": "New disaster alert",
+    "mapDanger": "Danger zone",
+    "type": "Type",
+    "severity": "Severity",
+    "region": "Region"
   }
 }

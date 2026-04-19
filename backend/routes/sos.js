@@ -91,7 +91,8 @@ async function updateAllSOSPriorities(io) {
       return distance <= radius;
     });
 
-    const newPriority = inZone ? 'red' : 'yellow';
+    const manualBoost = (sos.manualTriggerCount || 0) > 1;
+    const newPriority = inZone || manualBoost ? 'red' : 'yellow';
 
     if (sos.priority !== newPriority) {
       sos.priority = newPriority;
@@ -111,7 +112,8 @@ async function updateAllSOSPriorities(io) {
 // ─── POST /api/sos — victim triggers SOS ─────────────────
 router.post('/', authenticate, authorize('victim'), async (req, res) => {
   try {
-    const { lat, lng, message, source } = req.body;
+    const { lat, lng, message } = req.body;
+    const triggerSource = req.body.source === 'voice' ? 'voice' : 'manual';
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ message: 'Location is required' });
@@ -135,16 +137,22 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
     }).sort({ createdAt: -1 });
 
     const inDangerZone = await isInsideDangerZone(latNum, lngNum);
-    const priority = inDangerZone ? 'red' : 'yellow';
+
+    const prevManual = existingOpenSOS ? (existingOpenSOS.manualTriggerCount || 0) : 0;
+    const manualTriggerCount =
+      triggerSource === 'manual' ? prevManual + 1 : prevManual;
+
+    const priority =
+      inDangerZone || manualTriggerCount > 1 ? 'red' : 'yellow';
 
     if (existingOpenSOS) {
       const updatedSOS = await SOS.findByIdAndUpdate(
         existingOpenSOS._id,
         {
           priority,
+          manualTriggerCount,
           location: { lat: latNum, lng: lngNum },
-          ...(message !== undefined ? { message: message || '' } : {}),
-          ...(source !== undefined ? { source } : {})
+          ...(message !== undefined ? { message: message || '' } : {})
         },
         { returnDocument: 'after' }
       );
@@ -165,8 +173,8 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
       name: user.name,
       location: { lat: latNum, lng: lngNum },
       priority,
-      message: message || '',
-      ...(source !== undefined ? { source } : {})
+      manualTriggerCount: triggerSource === 'manual' ? 1 : 0,
+      message: message || ''
     });
 
     await updateAllSOSPriorities(req.io);

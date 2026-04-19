@@ -52,5 +52,12 @@
   "dashboard": {
     "ngoTitle": "非政府组织 / 救援控制台",
     "adminTitle": "管理员控制台"
+  },
+  "alert": {
+    "browserTitle": "新的灾害预警",
+    "mapDanger": "危险区域",
+    "type": "类型",
+    "severity": "严重程度",
+    "region": "地区"
   }
 }

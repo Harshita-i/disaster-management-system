@@ -52,5 +52,12 @@
   "dashboard": {
     "ngoTitle": "एनजीओ / बचाव डैशबोर्ड",
     "adminTitle": "व्यवस्थापक डैशबोर्ड"
+  },
+  "alert": {
+    "browserTitle": "नया आपदा अलर्ट",
+    "mapDanger": "खतरे का क्षेत्र",
+    "type": "प्रकार",
+    "severity": "गंभीरता",
+    "region": "क्षेत्र"
   }
 }

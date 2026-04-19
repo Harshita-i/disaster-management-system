@@ -29,12 +29,27 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAll();
-    socket.on('new-sos', (sos) => setSosList(prev => [sos, ...prev]));
-    socket.on('sos-list-updated', (updatedList) => setSosList(normalizeSOSList(updatedList)));
+    socket.on('new-sos', (sos) => setSosList((prev) => [sos, ...prev]));
+    socket.on('sos-list-updated', (updatedList) => {
+      if (Array.isArray(updatedList)) setSosList(updatedList);
+    });
+    socket.on('sos-updated', ({ sos }) => {
+      if (!sos?._id) return;
+      setSosList((prev) => {
+        const i = prev.findIndex((s) => String(s._id) === String(sos._id));
+        if (i === -1) return [sos, ...prev];
+        const next = [...prev];
+        next[i] = sos;
+        return next;
+      });
+    });
+    socket.on('sos-reassignment-timeout', () => fetchAll());
     socket.on('user-deleted', () => fetchAll());
     return () => {
       socket.off('new-sos');
       socket.off('sos-list-updated');
+      socket.off('sos-updated');
+      socket.off('sos-reassignment-timeout');
       socket.off('user-deleted');
     };
   }, []);

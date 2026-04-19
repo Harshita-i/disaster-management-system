@@ -60,7 +60,12 @@ async function updateAllSOSPriorities() {
       return distance <= (alert.radius || 5000);
     });
 
-    const newPriority = inZone ? 'red' : 'yellow';
+    // Must match sos.js updateAllSOSPriorities: red = danger zone OR repeat on same channel (>1)
+    const manualN = Number(sos.manualTriggerCount) || 0;
+    const voiceN = Number(sos.voiceTriggerCount) || 0;
+    const repeatBoost = manualN > 1 || voiceN > 1;
+    const newPriority = inZone || repeatBoost ? 'red' : 'yellow';
+
     if (sos.priority !== newPriority) {
       sos.priority = newPriority;
       updates.push(sos.save());

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -10,18 +10,38 @@ import { getSpeechLocale, transcriptMatchesSos } from '../i18n/speechLocales';
 import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 import './victim-theme.css';
 
+/** Fresh GPS each tap; generous timeout for repeat triggers */
+const GEO_SOS = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+
 export default function VictimDashboard() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [sosStatus, setSosStatus] = useState(null);
-  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
+  const [mySos, setMySos] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
   const [isListening, setIsListening] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef(null);
+  /** When true, we keep voice listening (auto-start on login, optional auto-restart after keyword SOS). */
+  const voiceArmedRef = useRef(false);
+  const initVoiceSOSRef = useRef(() => {});
+
+  const stopVoiceSOS = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* already stopped */
+      }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setTranscript('');
+    setShowTranscript(false);
+  };
 
   const initVoiceSOS = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -59,6 +79,7 @@ export default function VictimDashboard() {
       }
 
       if (transcriptMatchesSos(fullTranscript, i18n.language)) {
+        voiceArmedRef.current = false;
         stopVoiceSOS();
         setTimeout(() => triggerSOSVoice(fullTranscript), 100);
       }
@@ -68,32 +89,41 @@ export default function VictimDashboard() {
       console.error('Voice error:', event.error);
       setIsListening(false);
       if (event.error === 'not-allowed') {
+        voiceArmedRef.current = false;
         alert(t('victim.micDenied'));
       }
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      if (!voiceArmedRef.current) return;
+      window.setTimeout(() => {
+        if (!voiceArmedRef.current) return;
+        if (recognitionRef.current) return;
+        initVoiceSOSRef.current();
+      }, 200);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn('Speech start:', e);
+      recognitionRef.current = null;
+      setIsListening(false);
+    }
   };
 
-  const stopVoiceSOS = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-    setTranscript('');
-    setShowTranscript(false);
-  };
+  useLayoutEffect(() => {
+    initVoiceSOSRef.current = initVoiceSOS;
+  });
 
   const toggleVoiceSOS = () => {
-    if (isListening) {
+    if (isListening || recognitionRef.current) {
+      voiceArmedRef.current = false;
       stopVoiceSOS();
     } else {
+      voiceArmedRef.current = true;
       initVoiceSOS();
     }
   };
@@ -101,7 +131,13 @@ export default function VictimDashboard() {
   const fetchMyStatus = async () => {
     try {
       const res = await api.get('/sos/my');
-      if (res.data?.status != null) setSosStatus(res.data.status);
+      if (res.data?.status != null) {
+        setSosStatus(res.data.status);
+        setMySos(res.data._id ? res.data : null);
+      } else {
+        setSosStatus(null);
+        setMySos(null);
+      }
     } catch (err) {
       console.error('Status fetch error:', err);
     }
@@ -116,8 +152,21 @@ export default function VictimDashboard() {
     }
   };
 
-  const triggerSOSVoice = async (voiceMsg) => {
-    setSending(true);
+  const applySosFeedback = (sos, voiceMsg, isVoice) => {
+    setSosStatus(sos?.status || 'pending');
+    setMySos(sos?._id ? sos : null);
+    const repeatChannel =
+      Number(sos?.manualTriggerCount) > 1 || Number(sos?.voiceTriggerCount) > 1;
+    if (sos?.priority === 'red' && repeatChannel) {
+      setMessage(t('victim.escalated'));
+    } else if (isVoice) {
+      setMessage(t('victim.voiceSent', { msg: voiceMsg }));
+    } else {
+      setMessage(t('victim.manualSent'));
+    }
+  };
+
+  const triggerSOSVoice = (voiceMsg) => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
@@ -129,52 +178,42 @@ export default function VictimDashboard() {
             source: 'voice',
           });
           const sos = res.data?.sos;
-          setSosStatus(sos?.status || 'pending');
-          if (sos?.priority === 'red' && sos?.triggerCount > 1) {
-            setMessage(t('victim.escalated'));
-          } else {
-            setMessage(t('victim.voiceSent', { msg: voiceMsg }));
-          }
+          applySosFeedback(sos, voiceMsg, true);
+          voiceArmedRef.current = true;
+          window.setTimeout(() => initVoiceSOSRef.current(), 900);
         } catch (err) {
           console.error('Send error:', err);
           setMessage(t('victim.voiceFailed'));
-        } finally {
-          setSending(false);
+          voiceArmedRef.current = true;
+          window.setTimeout(() => initVoiceSOSRef.current(), 600);
         }
       },
       () => {
         alert(t('victim.enableGpsSos'));
-        setSending(false);
+        voiceArmedRef.current = true;
+        window.setTimeout(() => initVoiceSOSRef.current(), 600);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      GEO_SOS
     );
   };
 
-  const triggerSOS = async () => {
-    setSending(true);
+  const triggerSOS = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
         try {
           const res = await api.post('/sos', { lat, lng, source: 'manual' });
           const sos = res.data?.sos;
-          setSosStatus(sos?.status || 'pending');
-          if (sos?.priority === 'red' && sos?.triggerCount > 1) {
-            setMessage(t('victim.escalated'));
-          } else {
-            setMessage(t('victim.manualSent'));
-          }
+          applySosFeedback(sos, '', false);
         } catch (err) {
           console.error(err);
           setMessage(t('victim.voiceFailed'));
-        } finally {
-          setSending(false);
         }
       },
       () => {
         alert(t('victim.enableGps'));
-        setSending(false);
-      }
+      },
+      GEO_SOS
     );
   };
 
@@ -182,6 +221,7 @@ export default function VictimDashboard() {
     socket.on('sos-update', (data) => {
       setSosStatus(data.status);
       if (data.message) setMessage(data.message);
+      fetchMyStatus();
     });
 
     socket.on('new-alert', (alert) => {
@@ -190,24 +230,43 @@ export default function VictimDashboard() {
 
     fetchMyStatus();
     fetchAlerts();
-    const voiceTimer = window.setTimeout(() => initVoiceSOS(), 1500);
 
     return () => {
-      window.clearTimeout(voiceTimer);
       socket.off('sos-update');
       socket.off('new-alert');
+      voiceArmedRef.current = false;
       stopVoiceSOS();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only socket + delayed voice start
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only listeners; fetchMyStatus is stable enough
   }, []);
 
+  /** Auto-start voice listen when the victim session is active (login / first open). */
   useEffect(() => {
-    const had = !!recognitionRef.current;
-    if (!had) return;
+    if (!user?.id) return undefined;
+    voiceArmedRef.current = true;
+    const t = window.setTimeout(() => initVoiceSOSRef.current(), 700);
+    return () => {
+      window.clearTimeout(t);
+      voiceArmedRef.current = false;
+      stopVoiceSOS();
+    };
+  }, [user?.id]);
+
+  const prevSpeechLangRef = useRef(null);
+  useEffect(() => {
+    if (prevSpeechLangRef.current === null) {
+      prevSpeechLangRef.current = i18n.language;
+      return undefined;
+    }
+    if (prevSpeechLangRef.current === i18n.language) return undefined;
+    prevSpeechLangRef.current = i18n.language;
+    if (!voiceArmedRef.current) return undefined;
+    if (!recognitionRef.current) return undefined;
     stopVoiceSOS();
-    const timer = window.setTimeout(() => initVoiceSOS(), 250);
+    const timer = window.setTimeout(() => {
+      if (voiceArmedRef.current) initVoiceSOSRef.current();
+    }, 280);
     return () => window.clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- restart recognition when UI language changes
   }, [i18n.language]);
 
   const statusColor = {
@@ -252,13 +311,8 @@ export default function VictimDashboard() {
             <p className="vx-panel-desc">{t('victim.cardManualDesc')}</p>
             <div className="vx-panic-wrap">
               <div className="vx-panic-ring">
-                <button
-                  type="button"
-                  className="vx-btn-panic"
-                  onClick={triggerSOS}
-                  disabled={sending}
-                >
-                  {sending ? t('victim.sending') : t('victim.sos')}
+                <button type="button" className="vx-btn-panic" onClick={triggerSOS}>
+                  {t('victim.sos')}
                 </button>
               </div>
             </div>
@@ -273,9 +327,8 @@ export default function VictimDashboard() {
                 type="button"
                 className={`vx-btn-voice${isListening ? ' is-live' : ''}`}
                 onClick={toggleVoiceSOS}
-                disabled={!user || sending}
-                aria-busy={sending}
-                title={isListening ? t('victim.micTitleListen') : t('victim.micTitleStart')}
+                disabled={!user}
+                title={isListening ? t('victim.micTitleStop') : t('victim.micTitleStart')}
               >
                 {isListening && <span className="vx-rec" aria-hidden />}
                 <span aria-hidden>🎤</span>
@@ -291,6 +344,20 @@ export default function VictimDashboard() {
             </div>
           </article>
         </div>
+
+        {mySos?.assignedTo?.location?.lat != null &&
+          mySos?.assignedTo?.location?.lng != null && (
+            <div className="vx-team-loc" style={{ marginBottom: '1rem' }}>
+              <p className="vx-team-loc-label">{t('victim.assignedTeamLocation')}</p>
+              <p className="vx-team-loc-coords">
+                {Number(mySos.assignedTo.location.lat).toFixed(5)},{' '}
+                {Number(mySos.assignedTo.location.lng).toFixed(5)}
+              </p>
+              <p className="vx-team-loc-name">
+                {mySos.assignedTo.ngoName || mySos.assignedTo.name}
+              </p>
+            </div>
+          )}
 
         {sosStatus && (
           <div

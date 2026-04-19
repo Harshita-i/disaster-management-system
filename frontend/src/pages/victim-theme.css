@@ -177,6 +177,7 @@
   height: 90%;
   background: radial-gradient(circle, rgba(251, 113, 133, 0.2) 0%, transparent 65%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .vx-panel--voice::before {
@@ -219,6 +220,7 @@
 
 .vx-panic-wrap {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,6 +233,8 @@
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(251, 113, 133, 0.35), rgba(220, 38, 38, 0.15));
   animation: vx-ring-pulse 3s ease-in-out infinite;
+  /* Ring pulse extends past the button; without this, later taps can hit the ring instead of the button */
+  pointer-events: none;
 }
 
 @keyframes vx-ring-pulse {
@@ -245,6 +249,7 @@
 
 .vx-btn-panic {
   position: relative;
+  pointer-events: auto;
   width: min(168px, 58vw);
   height: min(168px, 58vw);
   border: none;

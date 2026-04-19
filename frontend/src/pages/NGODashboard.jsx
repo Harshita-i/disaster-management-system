@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
-import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Popup, Marker, useMap } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
@@ -85,25 +85,60 @@ function upsertSOS(prev, sos) {
   return normalizeSOSList([sos, ...without]);
 }
 
-const ngoBaseIcon = L.divIcon({
-  className: 'map-marker-ngo',
-  html:
-    '<div class="map-marker-ngo-inner"><span class="map-marker-ngo-glyph">🛡</span><span class="map-marker-ngo-tag">NGO</span></div>',
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
-  popupAnchor: [0, -20],
-});
+function assignedToId(sos) {
+  const a = sos.assignedTo;
+  if (a && typeof a === 'object' && a._id != null) return String(a._id);
+  if (a != null) return String(a);
+  return '';
+}
+
+function escapeHtmlForIcon(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function createNgoHouseIcon(label, mine) {
+  const safe = escapeHtmlForIcon(label);
+  return L.divIcon({
+    className: 'ngo-base-marker-wrap',
+    html: `<div class="ngo-base-house${mine ? ' ngo-base-house--mine' : ''}"><span class="ngo-base-house-emoji" aria-hidden="true">🏠</span><span class="ngo-base-house-label">${safe}</span></div>`,
+    iconSize: [148, 52],
+    iconAnchor: [74, 52],
+  });
+}
+
+function MapFitBounds({ bounds }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!bounds || !bounds.isValid()) return;
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    if (sw.equals(ne)) {
+      map.setView(sw, 13);
+      return;
+    }
+    map.fitBounds(bounds, { padding: [56, 56], maxZoom: 14 });
+  }, [map, bounds]);
+  return null;
+}
 
 export default function NGODashboard() {
   const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [sosList, setSosList] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
   const [ngoBases, setNgoBases] = useState([]);
+  const [ngoBasesLoaded, setNgoBasesLoaded] = useState(false);
+  const [baseHint, setBaseHint] = useState('');
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  /** List panel: your auto/manual assignments vs full network view */
+  const [sosScope, setSosScope] = useState('mine');
   const [assignError, setAssignError] = useState('');
 
   const mapCenter = useMemo(() => [20.5937, 78.9629], []);
@@ -111,9 +146,11 @@ export default function NGODashboard() {
   const fetchNgoBases = async () => {
     try {
       const res = await api.get('/users/ngo-bases');
-      setNgoBases(res.data || []);
-    } catch (e) {
-      console.error('NGO bases fetch failed:', e);
+      setNgoBases(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Failed to fetch NGO bases:', err);
+    } finally {
+      setNgoBasesLoaded(true);
     }
   };
 
@@ -137,22 +174,31 @@ export default function NGODashboard() {
     }
   };
 
-  useEffect(() => {
-    if (user?.role !== 'ngo') return;
+  const saveMyBaseFromGps = () => {
+    setBaseHint('');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        api
-          .patch('/users/me/location', {
+      async (pos) => {
+        try {
+          const res = await api.patch('/users/me/location', {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
-          })
-          .then(() => fetchNgoBases())
-          .catch(() => {});
+          });
+          if (res.data?.location) {
+            updateUser({ location: res.data.location });
+          }
+          setBaseHint(t('ngo.baseSavedHint'));
+          fetchNgoBases();
+        } catch (err) {
+          console.error(err);
+          setBaseHint(t('ngo.baseSaveFailed'));
+        }
       },
-      () => {},
-      { maximumAge: 600000, timeout: 20000 }
+      () => {
+        alert(t('ngo.enableGpsBase'));
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
     );
-  }, [user?.role, user?.id]);
+  };
 
   useEffect(() => {
     fetchSOS();
@@ -200,6 +246,11 @@ export default function NGODashboard() {
       }
     });
 
+    socket.on('sos-reassignment-timeout', () => {
+      fetchSOS();
+      fetchNgoBases();
+    });
+
     return () => {
       socket.off('new-sos');
       socket.off('sos-updated');
@@ -208,6 +259,7 @@ export default function NGODashboard() {
       socket.off('new-alert');
       socket.off('sos-list-updated');
       socket.off('user-deleted');
+      socket.off('sos-reassignment-timeout');
     };
   }, []);
 
@@ -246,8 +298,91 @@ export default function NGODashboard() {
     }
   };
 
+  const passBusySos = async (sosId) => {
+    setAssignError('');
+    if (!window.confirm(t('ngo.passBusyConfirm'))) return;
+    try {
+      const res = await api.post(`/sos/${sosId}/pass-busy`);
+      const updated = res.data?.sos;
+      if (updated) {
+        setSosList((prev) => upsertSOS(prev, updated));
+      }
+      setSelected(null);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Could not release SOS.';
+      setAssignError(msg);
+    }
+  };
+
+  const myUid = user?.id != null ? String(user.id) : '';
+
+  const preparedNgoMarkers = useMemo(() => {
+    const withCoords = ngoBases.filter(
+      (n) =>
+        n.location?.lat != null &&
+        n.location?.lng != null &&
+        Number.isFinite(Number(n.location.lat)) &&
+        Number.isFinite(Number(n.location.lng))
+    );
+    const bucket = new Map();
+    for (const n of withCoords) {
+      const lat0 = Number(n.location.lat);
+      const lng0 = Number(n.location.lng);
+      const key = `${lat0.toFixed(5)}_${lng0.toFixed(5)}`;
+      if (!bucket.has(key)) bucket.set(key, []);
+      bucket.get(key).push(n);
+    }
+    const out = [];
+    for (const group of bucket.values()) {
+      group.forEach((n, idx) => {
+        const lat0 = Number(n.location.lat);
+        const lng0 = Number(n.location.lng);
+        const step = 0.00012;
+        const lat = lat0 + step * idx * 0.85;
+        const lng = lng0 + step * idx * 1.05;
+        const mine = myUid && String(n._id) === myUid;
+        const label = n.ngoName || n.name || 'NGO';
+        out.push({
+          id: String(n._id),
+          lat,
+          lng,
+          lat0,
+          lng0,
+          label,
+          mine,
+          n,
+        });
+      });
+    }
+    return out;
+  }, [ngoBases, myUid]);
+
+  const mapBounds = useMemo(() => {
+    const pts = [];
+    sosList.forEach((s) => {
+      if (s.location?.lat != null && s.location?.lng != null) {
+        pts.push(L.latLng(s.location.lat, s.location.lng));
+      }
+    });
+    ngoBases.forEach((n) => {
+      if (n.location?.lat != null && n.location?.lng != null) {
+        pts.push(L.latLng(n.location.lat, n.location.lng));
+      }
+    });
+    if (pts.length === 0) return null;
+    return L.latLngBounds(pts);
+  }, [sosList, ngoBases]);
+
+  const mySosList = useMemo(
+    () => sosList.filter((s) => assignedToId(s) === myUid && myUid),
+    [sosList, myUid]
+  );
+
+  const panelSosList = sosScope === 'mine' ? mySosList : sosList;
+
   const counts = {
     total: sosList.length,
+    mineActive: mySosList.filter((s) => s.status !== 'resolved').length,
     pending: sosList.filter((s) => s.status === 'pending').length,
     red: sosList.filter((s) => s.priority === 'red' && s.status !== 'resolved').length,
     resolved: sosList.filter((s) => s.status === 'resolved').length
@@ -255,8 +390,8 @@ export default function NGODashboard() {
 
   const filtered =
     filter === 'all'
-      ? sosList
-      : sosList.filter((s) => s.priority === filter || s.status === filter);
+      ? panelSosList
+      : panelSosList.filter((s) => s.priority === filter || s.status === filter);
 
   const redPendingCount = sosList.filter(
     (s) => s.priority === 'red' && s.status === 'pending'
@@ -288,10 +423,11 @@ export default function NGODashboard() {
       <div className="dash-main">
         <div className="dash-stat-grid">
           {[
-            { label: 'Total SOS', value: counts.total, color: '#3b82f6' },
-            { label: 'Pending', value: counts.pending, color: '#f59e0b' },
-            { label: 'Critical', value: counts.red, color: '#ef4444' },
-            { label: 'Resolved', value: counts.resolved, color: '#10b981' },
+            { label: t('ngo.statMine'), value: counts.mineActive, color: '#6366f1' },
+            { label: t('ngo.statNetwork'), value: counts.total, color: '#3b82f6' },
+            { label: t('ngo.statPending'), value: counts.pending, color: '#f59e0b' },
+            { label: t('ngo.statCritical'), value: counts.red, color: '#ef4444' },
+            { label: t('ngo.statResolved'), value: counts.resolved, color: '#10b981' },
           ].map((card) => (
             <div
               key={card.label}
@@ -309,6 +445,30 @@ export default function NGODashboard() {
             <div className="dash-panel-header">
               <h3>🗺️ Live Rescue Map</h3>
             </div>
+            <div
+              style={{
+                padding: '0.65rem 0.85rem',
+                borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                fontSize: '0.8rem',
+                color: 'var(--text-muted, #94a3b8)',
+              }}
+            >
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 600, color: 'var(--text, #e2e8f0)' }}>
+                {t('ngo.baseLocationTitle')}
+              </p>
+              <p style={{ margin: '0 0 0.65rem', lineHeight: 1.45 }}>{t('ngo.baseLocationDesc')}</p>
+              <button type="button" className="btn btn-secondary btn-xs" onClick={saveMyBaseFromGps}>
+                {t('ngo.saveBaseGps')}
+              </button>
+              {baseHint && (
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#6ee7b7' }}>{baseHint}</p>
+              )}
+              {ngoBasesLoaded && ngoBases.length === 0 && (
+                <p style={{ margin: '0.65rem 0 0', fontSize: '0.72rem', lineHeight: 1.45, color: '#94a3b8' }}>
+                  {t('ngo.mapNoBasesYet')}
+                </p>
+              )}
+            </div>
             <MapContainer
               center={mapCenter}
               zoom={5}
@@ -318,6 +478,7 @@ export default function NGODashboard() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap"
             />
+            {mapBounds ? <MapFitBounds bounds={mapBounds} /> : null}
 
             {translatedAlerts.map(alert =>
               alert.location?.lat && alert.location?.lng ? (
@@ -346,92 +507,58 @@ export default function NGODashboard() {
               ) : null
             )}
 
-            {ngoBases.map((ngo) =>
-              ngo.location?.lat != null && ngo.location?.lng != null ? (
-                <Marker
-                  key={`ngo-base-${ngo._id}`}
-                  position={[ngo.location.lat, ngo.location.lng]}
-                  icon={ngoBaseIcon}
-                >
-                  <Popup>
-                    <div style={{ minWidth: 168 }}>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          letterSpacing: '0.08em',
-                          color: '#6366f1',
-                          marginBottom: 6,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {t('ngo.mapBaseLabel')}
-                      </div>
-                      <strong style={{ fontSize: 14 }}>{ngo.ngoName || ngo.name}</strong>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                        {t('ngo.mapBaseHint')}
-                      </div>
+            {preparedNgoMarkers.map((row) => (
+              <Marker
+                key={row.id}
+                position={[row.lat, row.lng]}
+                icon={createNgoHouseIcon(row.label, row.mine)}
+              >
+                <Popup>
+                  <div style={{ minWidth: 200 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#0ea5e9', marginBottom: 4 }}>
+                      {t('ngo.mapBaseLabel')}
                     </div>
-                  </Popup>
-                </Marker>
-              ) : null
-            )}
+                    <strong>
+                      {row.label}
+                      {row.mine ? ` · ${t('ngo.mapYourCase')}` : ''}
+                    </strong>
+                    <p style={{ fontSize: 12, margin: '6px 0 0' }}>
+                      {row.lat0.toFixed(5)}, {row.lng0.toFixed(5)}
+                    </p>
+                    <p style={{ fontSize: 10, margin: '8px 0 0', opacity: 0.85 }}>{t('ngo.mapBaseHint')}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
 
             {sosList.map((sos) => {
-              const assignee = sos.assignedTo;
-              const alat = assignee?.location?.lat;
-              const alng = assignee?.location?.lng;
-              const vlat = sos.location?.lat;
-              const vlng = sos.location?.lng;
-              const showLink =
-                assignee &&
-                alat != null &&
-                alng != null &&
-                vlat != null &&
-                vlng != null &&
-                sos.status !== 'resolved';
-              return showLink ? (
-                <Polyline
-                  key={`sos-route-${sos._id}`}
-                  positions={[
-                    [vlat, vlng],
-                    [alat, alng],
-                  ]}
-                  pathOptions={{
-                    color: '#6366f1',
-                    weight: 3,
-                    opacity: 0.75,
-                    dashArray: '8 6',
-                  }}
-                />
-              ) : null;
-            })}
-
-            {sosList.map(sos =>
-              sos.location?.lat && sos.location?.lng ? (
+              const mine = myUid && assignedToId(sos) === myUid;
+              const stroke = mine ? '#6366f1' : sos.status === 'resolved' ? '#10b981' : sos.priority === 'red' ? '#ef4444' : PRIORITY_COLORS[sos.priority];
+              return sos.location?.lat && sos.location?.lng ? (
                 <CircleMarker
                   key={sos._id}
                   center={[sos.location.lat, sos.location.lng]}
-                  radius={12}
-                  fillColor={
-                    sos.status === 'resolved'
-                      ? '#10b981'
-                      : sos.priority === 'red'
-                      ? '#ef4444'
-                      : PRIORITY_COLORS[sos.priority]
-                  }
-                  color={
-                    sos.status === 'resolved'
-                      ? '#10b981'
-                      : sos.priority === 'red'
-                      ? '#ef4444'
-                      : PRIORITY_COLORS[sos.priority]
-                  }
-                  fillOpacity={0.85}
+                  radius={mine ? 14 : 12}
+                  pathOptions={{
+                    weight: mine ? 3 : 2,
+                    color: stroke,
+                    fillColor:
+                      sos.status === 'resolved'
+                        ? '#10b981'
+                        : sos.priority === 'red'
+                          ? '#ef4444'
+                          : PRIORITY_COLORS[sos.priority],
+                    fillOpacity: 0.85,
+                  }}
                   eventHandlers={{ click: () => setSelected(sos) }}
                 >
                   <Popup>
                     <div style={{ minWidth: 170 }}>
+                      {mine && (
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#6366f1', marginBottom: 4 }}>
+                          {t('ngo.mapYourCase')}
+                        </div>
+                      )}
                       <strong>{sos.name}</strong><br />
                       {t('ngo.popupPriority')}:{' '}
                       <span
@@ -463,14 +590,30 @@ export default function NGODashboard() {
                     </div>
                   </Popup>
                 </CircleMarker>
-              ) : null
-            )}
+              ) : null;
+            })}
           </MapContainer>
         </div>
 
         <div className="dash-panel" style={{ minHeight: 400, height: 'min(560px, 62vh)' }}>
           <div className="dash-panel-header">
-            <h3>🚨 SOS Requests</h3>
+            <h3>🚨 {t('ngo.sosPanelTitle')}</h3>
+            <div className="filter-pills" style={{ marginBottom: 6 }}>
+              <button
+                type="button"
+                className={`filter-pill${sosScope === 'mine' ? ' is-active' : ''}`}
+                onClick={() => setSosScope('mine')}
+              >
+                {t('ngo.viewMine')}
+              </button>
+              <button
+                type="button"
+                className={`filter-pill${sosScope === 'all' ? ' is-active' : ''}`}
+                onClick={() => setSosScope('all')}
+              >
+                {t('ngo.viewAll')}
+              </button>
+            </div>
             <div className="filter-pills">
               {['all', 'pending', 'red', 'yellow', 'green', 'assigned'].map((f) => (
                 <button
@@ -518,9 +661,11 @@ export default function NGODashboard() {
               <p className="empty-hint" style={{ textAlign: 'center', padding: '1.5rem' }}>
                 Loading…
               </p>
-            ) : sosList.length === 0 ? (
+            ) : panelSosList.length === 0 ? (
               <p className="empty-hint" style={{ textAlign: 'center', padding: '1.5rem' }}>
-                No SOS requests yet
+                {sosScope === 'mine'
+                  ? t('ngo.emptyMine')
+                  : t('ngo.emptyAll')}
               </p>
             ) : filter !== 'all' ? (
               filtered.length === 0 ? (
@@ -528,21 +673,23 @@ export default function NGODashboard() {
                   No results for this filter
                 </p>
               ) : (
-                filtered.map(sos => (
+                filtered.map((sos) => (
                   <SOSCard
                     key={sos._id}
                     sos={sos}
+                    currentUserId={myUid}
                     selected={selected}
                     setSelected={setSelected}
                     acceptSOS={acceptSOS}
                     updateStatus={updateStatus}
+                    passBusySos={passBusySos}
                     locked={false}
                   />
                 ))
               )
             ) : (
-              PRIORITY_SECTIONS.map(section => {
-                const group = sosList.filter(s => s.priority === section.priority);
+              PRIORITY_SECTIONS.map((section) => {
+                const group = panelSosList.filter((s) => s.priority === section.priority);
                 if (group.length === 0) return null;
 
                 const locked = isLocked(section.priority);
@@ -589,14 +736,16 @@ export default function NGODashboard() {
                       )}
                     </div>
 
-                    {group.map(sos => (
+                    {group.map((sos) => (
                       <SOSCard
                         key={sos._id}
                         sos={sos}
+                        currentUserId={myUid}
                         selected={selected}
                         setSelected={setSelected}
                         acceptSOS={acceptSOS}
                         updateStatus={updateStatus}
+                        passBusySos={passBusySos}
                         locked={locked}
                       />
                     ))}
@@ -628,23 +777,16 @@ export default function NGODashboard() {
           </div>
           <div className="dash-legend-item">
             <span
-              className="dash-legend-ngo"
-              title="NGO base"
-            />
-            <span>{t('ngo.legendBase')}</span>
-          </div>
-          <div className="dash-legend-item">
-            <span
               className="dash-legend-dot"
               style={{
-                width: 22,
-                height: 0,
-                borderTop: '3px dashed #6366f1',
-                borderRadius: 0,
-                background: 'transparent',
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                border: '3px solid #6366f1',
+                background: 'rgba(239,68,68,0.35)',
               }}
             />
-            <span>{t('ngo.legendRoute')}</span>
+            <span>{t('ngo.legendMyCase')}</span>
           </div>
         </div>
       </div>
@@ -652,7 +794,16 @@ export default function NGODashboard() {
   );
 }
 
-function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }) {
+function SOSCard({
+  sos,
+  currentUserId,
+  selected,
+  setSelected,
+  acceptSOS,
+  updateStatus,
+  passBusySos,
+  locked,
+}) {
   const { t } = useTranslation();
   const isSelected = selected?._id === sos._id;
   const assignee = sos.assignedTo;
@@ -660,6 +811,11 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
     assignee && typeof assignee === 'object'
       ? assignee.ngoName || assignee.name
       : null;
+
+  const assignId = assignedToId(sos);
+  const isMine = Boolean(currentUserId && assignId === currentUserId);
+  const canClaim = sos.status === 'pending' && !assignId;
+  const readOnly = !isMine && !canClaim;
 
   return (
     <div
@@ -671,7 +827,7 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
           setSelected(isSelected ? null : sos);
         }
       }}
-      className={`sos-card-ui${locked ? ' is-locked' : ''}`}
+      className={`sos-card-ui${locked ? ' is-locked' : ''}${readOnly ? ' sos-card-ui--readonly' : ''}`}
       onClick={() => !locked && setSelected(isSelected ? null : sos)}
       style={{
         background:
@@ -799,6 +955,12 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
         )}
       </div>
 
+      {readOnly && (
+        <div style={{ marginTop: 4, fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>
+          {t('ngo.readOnlyHint')}
+        </div>
+      )}
+
       {locked && (
         <div style={{ marginTop: 6, fontSize: 11, color: '#ef4444' }}>
           🔒 Resolve higher priority victims first
@@ -807,7 +969,12 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
 
       {isSelected && !locked && (
         <div className="sos-card-actions">
-          {sos.status === 'pending' && (
+          {readOnly && (
+            <p style={{ margin: '0 0 0.5rem', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              {t('ngo.readOnlyActions')}
+            </p>
+          )}
+          {canClaim && (
             <button
               type="button"
               className="btn btn-xs btn-success"
@@ -816,22 +983,34 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
                 acceptSOS(sos._id);
               }}
             >
-              Accept
+              {t('ngo.claimSos')}
             </button>
           )}
-          {sos.status === 'assigned' && (
-            <button
-              type="button"
-              className="btn btn-xs btn-violet"
-              onClick={(e) => {
-                e.stopPropagation();
-                updateStatus(sos._id, 'in-progress');
-              }}
-            >
-              In progress
-            </button>
+          {isMine && sos.status === 'assigned' && (
+            <>
+              <button
+                type="button"
+                className="btn btn-xs btn-violet"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateStatus(sos._id, 'in-progress');
+                }}
+              >
+                {t('ngo.statusInProgress')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-xs btn-slate"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  passBusySos(sos._id);
+                }}
+              >
+                {t('ngo.passBusy')}
+              </button>
+            </>
           )}
-          {sos.status === 'in-progress' && (
+          {isMine && sos.status === 'in-progress' && (
             <button
               type="button"
               className="btn btn-xs btn-cyan"
@@ -840,7 +1019,7 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
                 updateStatus(sos._id, 'resolved');
               }}
             >
-              Resolved
+              {t('ngo.statusResolved')}
             </button>
           )}
           <button
@@ -851,7 +1030,7 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
               setSelected(null);
             }}
           >
-            Close
+            {t('ngo.closeDetail')}
           </button>
         </div>
       )}

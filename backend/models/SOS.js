@@ -34,6 +34,17 @@ const sosSchema = new mongoose.Schema({
     ref: 'User',
     default: null,
   },
+  /** When status became assigned (response SLA timer) */
+  assignedAt: { type: Date },
+  /** NGOs not to pick again soon after timeout reassignment */
+  reassignmentExcludeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  reassignmentEvents: [
+    {
+      at: { type: Date, default: Date.now },
+      fromNgo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      reason: { type: String },
+    },
+  ],
   /** System picked nearest available NGO */
   autoAssigned: { type: Boolean, default: false },
   message: { type: String },
@@ -41,6 +52,8 @@ const sosSchema = new mongoose.Schema({
   triggerCount: { type: Number, default: 1 },
   /** Manual presses only (analytics / UI) */
   manualTriggerCount: { type: Number, default: 0 },
+  /** Keyword / voice sends while this SOS is open */
+  voiceTriggerCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,9 +1,79 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const SOS = require('../models/SOS');
 const User = require('../models/User');
 const Alert = require('../models/Alert');
 const { authenticate, authorize } = require('../middleware/auth');
+
+/** Active SLA timers: if assigned → not in-progress within window, reassign */
+const sosResponseTimers = new Map();
+
+function getResponseTimeoutMinutes() {
+  const raw = Number(process.env.SOS_RESPONSE_TIMEOUT_MINUTES);
+  const n = Number.isFinite(raw) && raw > 0 ? raw : 8;
+  return Math.min(10, Math.max(5, n));
+}
+
+function clearSosResponseTimer(sosId) {
+  const sid = String(sosId);
+  const h = sosResponseTimers.get(sid);
+  if (h) clearTimeout(h);
+  sosResponseTimers.delete(sid);
+}
+
+function scheduleSosResponseTimer(io, sosId, delayMsOverride) {
+  clearSosResponseTimer(sosId);
+  const fullWindow = getResponseTimeoutMinutes() * 60 * 1000;
+  const delay =
+    delayMsOverride != null && Number.isFinite(Number(delayMsOverride))
+      ? Math.min(fullWindow, Math.max(1000, Math.floor(Number(delayMsOverride))))
+      : fullWindow;
+  const handle = setTimeout(() => {
+    processSosResponseDeadline(io, sosId).catch((err) =>
+      console.error('[SOS] response deadline:', err.message)
+    );
+  }, delay);
+  sosResponseTimers.set(String(sosId), handle);
+}
+
+/**
+ * In-memory timers are lost on nodemon/server restart. Use assignedAt in the DB
+ * to find overdue "assigned" SOS and run the same deadline handler; reschedule
+ * remaining time if a row is still inside the window but has no live timer.
+ */
+async function reconcileAssignedSla(io) {
+  if (!io) return;
+  const windowMs = getResponseTimeoutMinutes() * 60 * 1000;
+  const cutoff = Date.now() - windowMs;
+
+  const rows = await SOS.find({
+    status: 'assigned',
+    assignedTo: { $ne: null },
+  })
+    .select('_id assignedAt')
+    .lean();
+
+  for (const row of rows) {
+    const id = row._id;
+    const startMs = row.assignedAt ? new Date(row.assignedAt).getTime() : 0;
+    const overdue = !row.assignedAt || startMs <= cutoff;
+
+    if (overdue) {
+      await processSosResponseDeadline(io, id);
+      continue;
+    }
+
+    const remaining = startMs + windowMs - Date.now();
+    if (remaining > 1500 && !sosResponseTimers.has(String(id))) {
+      scheduleSosResponseTimer(io, id, remaining);
+    }
+  }
+}
+
+function clampScore(x) {
+  return Math.max(0, Math.min(100, x));
+}
 
 function toRadians(value) {
   return (value * Math.PI) / 180;
@@ -118,11 +188,9 @@ async function updateAllSOSPriorities(io) {
 
     const inZone = sosInAnyZone(sosLat, sosLng, alertZones);
 
-    const tc =
-      sos.triggerCount != null
-        ? sos.triggerCount
-        : Math.max(1, sos.manualTriggerCount || 1);
-    const repeatBoost = tc > 1;
+    const manualN = Number(sos.manualTriggerCount) || 0;
+    const voiceN = Number(sos.voiceTriggerCount) || 0;
+    const repeatBoost = manualN > 1 || voiceN > 1;
     const newPriority = inZone || repeatBoost ? 'red' : 'yellow';
 
     if (sos.priority !== newPriority) {
@@ -143,54 +211,202 @@ async function updateAllSOSPriorities(io) {
 }
 
 /**
- * Pick nearest / least-loaded NGO. Uses SOS priorityScore so critical calls weight distance more.
+ * Weighted NGO pick (0–100 subscores):
+ * assignmentScore =
+ *   distance*0.35 + availability*0.20 + workload*0.15 + capability*0.15 + reliability*0.10 + region*0.05
  */
-async function findBestNgoForSos(lat, lng, sosPriorityScore) {
-  const ngos = await User.find({
+async function findBestNgoForSos(lat, lng, sosPriorityScore, excludeIds = []) {
+  const excludeOid = (excludeIds || [])
+    .map((id) => String(id))
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+
+  const query = {
     role: 'ngo',
     approved: true,
     blocked: { $ne: true },
-    'location.lat': { $exists: true, $ne: null },
-    'location.lng': { $exists: true, $ne: null },
-  }).select('_id name ngoName location');
+  };
+  if (excludeOid.length) {
+    query._id = { $nin: excludeOid };
+  }
+
+  const ngos = await User.find(query).select('_id name ngoName location');
 
   if (!ngos.length) return null;
 
-  const loads = await Promise.all(
+  const victimLat = Number(lat);
+  const victimLng = Number(lng);
+  const hasVictim = Number.isFinite(victimLat) && Number.isFinite(victimLng);
+
+  const scored = await Promise.all(
     ngos.map(async (n) => {
       const open = await SOS.countDocuments({
         assignedTo: n._id,
         status: { $in: ['assigned', 'in-progress'] },
       });
-      return { ngo: n, open };
+      const inProg = await SOS.countDocuments({
+        assignedTo: n._id,
+        status: 'in-progress',
+      });
+      const resolvedCount = await SOS.countDocuments({
+        assignedTo: n._id,
+        status: 'resolved',
+      });
+
+      let distKm = NaN;
+      if (hasVictim && n.location?.lat != null && n.location?.lng != null) {
+        const d = distanceInMeters(victimLat, victimLng, n.location.lat, n.location.lng);
+        if (Number.isFinite(d)) distKm = d / 1000;
+      }
+
+      let distanceScore = 55;
+      if (Number.isFinite(distKm)) {
+        distanceScore = clampScore(100 / (1 + distKm * 0.065));
+      }
+
+      const availabilityScore = clampScore(100 / (1 + open * 3.5));
+
+      const workloadStress = open * 11 + inProg * 16;
+      const workloadScore = clampScore(100 - Math.min(92, workloadStress));
+
+      const capabilityScore = clampScore(
+        76 + (n.ngoName ? 10 : 0) + Math.min(14, resolvedCount * 0.35)
+      );
+
+      const reliabilityScore = clampScore(
+        resolvedCount < 1 ? 68 : 55 + Math.min(40, resolvedCount * 2.2)
+      );
+
+      let regionScore = 58;
+      if (Number.isFinite(distKm)) {
+        if (distKm < 75) regionScore = 100;
+        else if (distKm < 220) regionScore = 78;
+        else regionScore = clampScore(95 - distKm / 12);
+      }
+
+      const assignmentScore =
+        distanceScore * 0.35 +
+        availabilityScore * 0.2 +
+        workloadScore * 0.15 +
+        capabilityScore * 0.15 +
+        reliabilityScore * 0.1 +
+        regionScore * 0.05;
+
+      return { ngo: n, assignmentScore, open };
     })
   );
 
-  const urgencyWeight = Math.min(1, (Number(sosPriorityScore) || 50) / 100);
-  const distBoost = 0.35 + urgencyWeight * 0.25;
+  scored.sort((a, b) => {
+    if (b.assignmentScore !== a.assignmentScore) return b.assignmentScore - a.assignmentScore;
+    if (a.open !== b.open) return a.open - b.open;
+    return String(a.ngo._id).localeCompare(String(b.ngo._id));
+  });
 
-  let best = null;
-  let bestScore = -Infinity;
+  return scored[0].ngo;
+}
 
-  for (const { ngo, open } of loads) {
-    const d = distanceInMeters(lat, lng, ngo.location.lat, ngo.location.lng);
-    if (!Number.isFinite(d)) continue;
+/**
+ * Release current assignee (must match prevId), exclude them from immediate re-pick,
+ * notify, then auto-assign next best NGO if any.
+ */
+async function executeReleaseAndReassign(io, sosId, prevId, reassignmentReason, victimMessage) {
+  clearSosResponseTimer(sosId);
 
-    const distKm = d / 1000;
-    const distanceScore = 100 / (1 + distKm * 0.55);
-    const availabilityScore = 100 / (1 + open * 12);
-    const score =
-      distanceScore * distBoost +
-      availabilityScore * (0.95 - distBoost * 0.35) +
-      (Number(sosPriorityScore) || 50) * 0.08;
+  const sos = await SOS.findById(sosId);
+  if (!sos || sos.status !== 'assigned') return;
 
-    if (score > bestScore) {
-      bestScore = score;
-      best = ngo;
-    }
+  const current = sos.assignedTo;
+  if (!current || String(current) !== String(prevId)) return;
+
+  const ex = new Set((sos.reassignmentExcludeIds || []).map(String));
+  ex.add(String(prevId));
+  const excludeArr = Array.from(ex)
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .slice(0, 15)
+    .map((id) => new mongoose.Types.ObjectId(id));
+
+  await SOS.findByIdAndUpdate(sosId, {
+    assignedTo: null,
+    status: 'pending',
+    autoAssigned: false,
+    assignedAt: null,
+    reassignmentExcludeIds: excludeArr,
+    $push: {
+      reassignmentEvents: {
+        at: new Date(),
+        fromNgo: prevId,
+        reason: reassignmentReason,
+      },
+    },
+  });
+
+  const pendingDoc = await loadSosPopulated(sosId);
+  io.to('victim').emit('sos-update', {
+    sosId: pendingDoc._id,
+    status: 'pending',
+    message: victimMessage,
+  });
+  io.to('ngo').emit('sos-reassignment-timeout', {
+    sosId: String(sosId),
+    previousNgoId: String(prevId),
+    reason: reassignmentReason,
+  });
+  io.to('admin').emit('sos-reassignment-timeout', {
+    sosId: String(sosId),
+    previousNgoId: String(prevId),
+    reason: reassignmentReason,
+  });
+  io.to('ngo').emit('sos-updated', { sos: pendingDoc });
+  io.to('admin').emit('sos-updated', { sos: pendingDoc });
+
+  const lat = Number(pendingDoc.location?.lat);
+  const lng = Number(pendingDoc.location?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    await updateAllSOSPriorities(io);
+    return;
   }
 
-  return best;
+  const next = await findBestNgoForSos(lat, lng, pendingDoc.priorityScore, excludeArr);
+  if (!next) {
+    await updateAllSOSPriorities(io);
+    return;
+  }
+
+  const label = next.ngoName || next.name || 'A rescue team';
+  const reassigned = await SOS.findByIdAndUpdate(
+    sosId,
+    {
+      assignedTo: next._id,
+      status: 'assigned',
+      autoAssigned: true,
+      assignedAt: new Date(),
+    },
+    { new: true }
+  ).populate('assignedTo', 'name ngoName location');
+
+  scheduleSosResponseTimer(io, reassigned._id);
+
+  io.to('victim').emit('sos-update', {
+    sosId: reassigned._id,
+    status: 'assigned',
+    message: `${label} is now assigned to you.`,
+  });
+  io.to('ngo').emit('sos-assigned', { sosId: reassigned._id, assignedTo: next._id });
+  io.to('admin').emit('sos-assigned', { sosId: reassigned._id, assignedTo: next._id });
+  io.to('ngo').emit('sos-updated', { sos: reassigned });
+  io.to('admin').emit('sos-updated', { sos: reassigned });
+  await updateAllSOSPriorities(io);
+}
+
+async function processSosResponseDeadline(io, sosId) {
+  const sos = await SOS.findById(sosId).select('status assignedTo');
+  if (!sos || sos.status !== 'assigned' || !sos.assignedTo) {
+    clearSosResponseTimer(sosId);
+    return;
+  }
+  const victimMsg =
+    'Your assigned team did not move the rescue to in-progress in time. Another team will be selected.';
+  await executeReleaseAndReassign(io, sosId, sos.assignedTo, 'response_timeout', victimMsg);
 }
 
 async function tryAutoAssignSos(io, sosDoc) {
@@ -202,16 +418,24 @@ async function tryAutoAssignSos(io, sosDoc) {
   const lng = Number(sosDoc.location?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return sosDoc;
 
-  const ngo = await findBestNgoForSos(lat, lng, sosDoc.priorityScore);
+  const exclude = (sosDoc.reassignmentExcludeIds || []).map((id) => String(id));
+  const ngo = await findBestNgoForSos(lat, lng, sosDoc.priorityScore, exclude);
   if (!ngo) return sosDoc;
 
   const label = ngo.ngoName || ngo.name || 'A rescue team';
 
   const updated = await SOS.findByIdAndUpdate(
     sosDoc._id,
-    { assignedTo: ngo._id, status: 'assigned', autoAssigned: true },
+    {
+      assignedTo: ngo._id,
+      status: 'assigned',
+      autoAssigned: true,
+      assignedAt: new Date(),
+    },
     { new: true }
   ).populate('assignedTo', 'name ngoName location');
+
+  scheduleSosResponseTimer(io, updated._id);
 
   io.to('victim').emit('sos-update', {
     sosId: updated._id,
@@ -260,6 +484,7 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
 
     let triggerCount;
     let manualTriggerCount;
+    let voiceTriggerCount;
 
     if (existingOpenSOS) {
       const prevTc =
@@ -271,12 +496,21 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
         triggerSource === 'manual'
           ? (existingOpenSOS.manualTriggerCount || 0) + 1
           : existingOpenSOS.manualTriggerCount || 0;
+      voiceTriggerCount =
+        triggerSource === 'voice'
+          ? (existingOpenSOS.voiceTriggerCount || 0) + 1
+          : existingOpenSOS.voiceTriggerCount || 0;
     } else {
       triggerCount = 1;
       manualTriggerCount = triggerSource === 'manual' ? 1 : 0;
+      voiceTriggerCount = triggerSource === 'voice' ? 1 : 0;
     }
 
-    const priority = inDangerZone || triggerCount > 1 ? 'red' : 'yellow';
+    // Yellow: first manual only (≤1) and/or first voice only (≤1) while outside admin danger zones.
+    // Red: inside a high/critical alert radius, OR more than one manual press, OR more than one voice send.
+    const forceRed =
+      inDangerZone || manualTriggerCount > 1 || voiceTriggerCount > 1;
+    const priority = forceRed ? 'red' : 'yellow';
 
     const scores = computeTrustAndScores({
       inDangerZone,
@@ -290,6 +524,7 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
       priority,
       triggerCount,
       manualTriggerCount,
+      voiceTriggerCount,
       trustScore: scores.trustScore,
       priorityScore: scores.priorityScore,
       suspicious: scores.suspicious,
@@ -442,9 +677,16 @@ router.post('/:id/assign', authenticate, authorize('ngo'), async (req, res) => {
 
     const sos = await SOS.findByIdAndUpdate(
       req.params.id,
-      { assignedTo: req.user.id, status: 'assigned', autoAssigned: false },
+      {
+        assignedTo: req.user.id,
+        status: 'assigned',
+        autoAssigned: false,
+        assignedAt: new Date(),
+      },
       { new: true }
     ).populate('assignedTo', 'name ngoName location');
+
+    scheduleSosResponseTimer(req.io, sos._id);
 
     req.io.to('victim').emit('sos-update', {
       sosId: sos._id,
@@ -460,6 +702,37 @@ router.post('/:id/assign', authenticate, authorize('ngo'), async (req, res) => {
     return res.json({ message: 'SOS assigned successfully', sos });
   } catch (err) {
     return res.status(500).json({ message: 'Assignment failed', error: err.message });
+  }
+});
+
+// ─── POST /api/sos/:id/pass-busy — assigned NGO: busy, pass to another team ─
+router.post('/:id/pass-busy', authenticate, authorize('ngo'), async (req, res) => {
+  try {
+    const sos = await SOS.findById(req.params.id);
+    if (!sos) {
+      return res.status(404).json({ message: 'SOS not found' });
+    }
+    if (sos.status !== 'assigned') {
+      return res.status(400).json({ message: 'This SOS is not in an assigned state.' });
+    }
+    const assignedId = sos.assignedTo ? String(sos.assignedTo) : '';
+    if (!assignedId || assignedId !== String(req.user.id)) {
+      return res.status(403).json({
+        message: 'Only the currently assigned team can pass this SOS.',
+      });
+    }
+
+    const victimMsg =
+      'Your assigned team signalled they are busy right now. The system is selecting another responder.';
+    await executeReleaseAndReassign(req.io, sos._id, req.user.id, 'ngo_busy', victimMsg);
+
+    const fresh = await loadSosPopulated(req.params.id);
+    return res.json({
+      message: 'Case released. Another team may have been assigned if one is available.',
+      sos: fresh,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Could not pass SOS', error: err.message });
   }
 });
 
@@ -488,6 +761,10 @@ router.post('/:id/status', authenticate, authorize('ngo', 'admin'), async (req, 
       { new: true }
     ).populate('assignedTo', 'name ngoName location');
 
+    if (status === 'in-progress' || status === 'resolved') {
+      clearSosResponseTimer(req.params.id);
+    }
+
     if (status !== 'resolved') {
       await updateAllSOSPriorities(req.io);
     }
@@ -503,5 +780,13 @@ router.post('/:id/status', authenticate, authorize('ngo', 'admin'), async (req, 
     return res.status(500).json({ message: 'Status update failed' });
   }
 });
+
+/** Call once after HTTP server + Socket.IO are up (e.g. from server.js). */
+router.startSosSlaReconciler = function startSosSlaReconciler(io) {
+  const tick = () => reconcileAssignedSla(io).catch((err) => console.error('[SOS SLA]', err.message));
+  tick();
+  const handle = setInterval(tick, 60 * 1000);
+  return handle;
+};
 
 module.exports = router;

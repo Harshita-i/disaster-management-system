@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import i18n from '../i18n/config';
 import socket from '../utils/socket';
 import { translateStrings } from '../utils/dynamicTranslate';
@@ -61,8 +61,18 @@ export function AuthProvider({ children }) {
     socket.disconnect();
   };
 
+  /** Shallow merge into session user (e.g. after PATCH /users/me/location). */
+  const updateUser = useCallback((partial) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...partial };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

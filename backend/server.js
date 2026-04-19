@@ -77,6 +77,10 @@ mongoose
     console.log('MongoDB connected');
     server.listen(process.env.PORT || 5001, () => {
       console.log(`Server running on port ${process.env.PORT || 5001}`);
+      if (typeof sosRoutes.startSosSlaReconciler === 'function') {
+        sosRoutes.startSosSlaReconciler(io);
+        console.log('[SOS SLA] periodic reassignment reconciler started (every 60s)');
+      }
     });
   })
   .catch((err) => {

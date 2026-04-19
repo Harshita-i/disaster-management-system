@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "语言",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "themeUseLight": "浅色主题",
+    "themeUseDark": "深色主题"
   },
   "login": {
     "brand": "DisasterAlert",

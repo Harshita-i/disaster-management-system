@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "ಭಾಷೆ",
-    "logout": "ಲಾಗ್ ಔಟ್"
+    "logout": "ಲಾಗ್ ಔಟ್",
+    "themeUseLight": "ಲೈಟ್ ಥೀಮ್",
+    "themeUseDark": "ಡಾರ್ಕ್ ಥೀಮ್"
   },
   "login": {
     "brand": "DisasterAlert",

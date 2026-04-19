@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ThemeToggle from '../components/ThemeToggle';
 
 function NetworkBackground() {
   const { t } = useTranslation();
@@ -116,7 +117,8 @@ export default function Login() {
   return (
     <div className="login-shell">
       <div className="login-lang">
-        <LanguageSwitcher variant="light" />
+        <ThemeToggle />
+        <LanguageSwitcher variant="light" compact />
       </div>
       <NetworkBackground />
       <div className="login-card">

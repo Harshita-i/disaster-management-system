@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "Idioma",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "themeUseLight": "Tema claro",
+    "themeUseDark": "Tema oscuro"
   },
   "login": {
     "brand": "DisasterAlert",

@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "భాష",
-    "logout": "లాగ్ అవుట్"
+    "logout": "లాగ్ అవుట్",
+    "themeUseLight": "లైట్ థీమ్",
+    "themeUseDark": "డార్క్ థీమ్"
   },
   "login": {
     "brand": "DisasterAlert",

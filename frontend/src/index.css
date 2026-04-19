@@ -38,11 +38,93 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  --body-gradient-end: #070b14;
+  --grid-line-a: rgba(148, 163, 184, 0.03);
+  --input-bg: rgba(15, 23, 42, 0.65);
+  --input-bg-focus: rgba(15, 23, 42, 0.9);
+  --input-focus-ring: rgba(34, 211, 238, 0.12);
+  --login-card-start: rgba(22, 31, 53, 0.92);
+  --login-card-end: rgba(11, 18, 32, 0.88);
+  --login-error-bg: rgba(248, 113, 113, 0.12);
+  --login-error-border: rgba(248, 113, 113, 0.35);
+  --login-error-text: #fecaca;
+  --node-tooltip-bg: rgba(15, 23, 42, 0.95);
+  --node-border: rgba(255, 255, 255, 0.12);
+  --dash-header-start: rgba(18, 26, 44, 0.95);
+  --dash-header-end: rgba(11, 18, 32, 0.85);
+
   /* Legacy aliases used in some components */
   --bg-primary: var(--canvas);
   --bg-card: var(--surface-solid);
   --text-primary: var(--text);
   --border-light: var(--border);
+}
+
+[data-theme='light'] {
+  --canvas: #f1f5f9;
+  --canvas-muted: #e8edf3;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --surface-elevated: #f8fafc;
+  --border: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #0891b2;
+  --accent-dim: rgba(8, 145, 178, 0.14);
+  --accent-glow: rgba(8, 145, 178, 0.22);
+  --danger: #dc2626;
+  --danger-deep: #b91c1c;
+  --success: #059669;
+  --success-deep: #047857;
+  --warning: #d97706;
+  --info: #4f46e5;
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
+  --shadow-glow: 0 0 0 1px rgba(8, 145, 178, 0.14), 0 18px 44px rgba(15, 23, 42, 0.1);
+  --body-gradient-end: #e2e8f0;
+  --grid-line-a: rgba(15, 23, 42, 0.055);
+  --input-bg: rgba(255, 255, 255, 0.96);
+  --input-bg-focus: #ffffff;
+  --input-focus-ring: rgba(8, 145, 178, 0.2);
+  --login-card-start: rgba(255, 255, 255, 0.97);
+  --login-card-end: rgba(241, 245, 249, 0.94);
+  --login-error-bg: rgba(254, 226, 226, 0.9);
+  --login-error-border: rgba(248, 113, 113, 0.5);
+  --login-error-text: #991b1b;
+  --node-tooltip-bg: rgba(255, 255, 255, 0.98);
+  --node-border: rgba(15, 23, 42, 0.12);
+  --dash-header-start: rgba(255, 255, 255, 0.96);
+  --dash-header-end: rgba(241, 245, 249, 0.9);
+  --bg-primary: var(--canvas);
+  --bg-card: var(--surface-solid);
+  --text-primary: var(--text);
+  --border-light: var(--border);
+}
+
+[data-theme='light'] body {
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -25%, rgba(8, 145, 178, 0.12), transparent 52%),
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(79, 70, 229, 0.08), transparent 48%),
+    linear-gradient(180deg, var(--canvas) 0%, var(--body-gradient-end) 100%);
+}
+
+[data-theme='light'] .login-shell::before {
+  opacity: 0.5;
+}
+
+[data-theme='light'] .network-track {
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.16), transparent);
+}
+
+[data-theme='light'] .input-field:focus {
+  border-color: rgba(8, 145, 178, 0.55);
+}
+
+[data-theme='light'] ::selection {
+  background: rgba(8, 145, 178, 0.22);
+  color: var(--text);
 }
 
 *,
@@ -66,7 +148,7 @@ body {
   background-image:
     radial-gradient(ellipse 120% 80% at 50% -30%, rgba(34, 211, 238, 0.14), transparent 55%),
     radial-gradient(ellipse 80% 50% at 100% 0%, rgba(129, 140, 248, 0.1), transparent 50%),
-    linear-gradient(180deg, var(--canvas) 0%, #070b14 100%);
+    linear-gradient(180deg, var(--canvas) 0%, var(--body-gradient-end) 100%);
   background-attachment: fixed;
 }
 
@@ -76,8 +158,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+    linear-gradient(var(--grid-line-a) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-a) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent);
   z-index: 0;
@@ -206,7 +288,7 @@ body::before {
   flex-wrap: wrap;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(180deg, rgba(18, 26, 44, 0.95) 0%, rgba(11, 18, 32, 0.85) 100%);
+  background: linear-gradient(180deg, var(--dash-header-start) 0%, var(--dash-header-end) 100%);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(12px);
   position: sticky;
@@ -906,6 +988,12 @@ textarea.form-control {
   top: 1.25rem;
   right: 1.25rem;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: min(100vw - 2.5rem, 420px);
 }
 
 .network-panel {
@@ -967,7 +1055,7 @@ textarea.form-control {
   display: grid;
   place-items: center;
   box-shadow: var(--shadow);
-  border: 3px solid rgba(255, 255, 255, 0.12);
+  border: 3px solid var(--node-border);
   position: relative;
   transition:
     transform 0.3s var(--ease-out),
@@ -1006,7 +1094,7 @@ textarea.form-control {
   top: -2rem;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--node-tooltip-bg);
   color: var(--text);
   font-size: 0.6875rem;
   font-weight: 500;
@@ -1039,7 +1127,7 @@ textarea.form-control {
   width: min(430px, 100%);
   padding: 2.5rem 2.25rem;
   border-radius: var(--radius-xl);
-  background: linear-gradient(165deg, rgba(22, 31, 53, 0.92) 0%, rgba(11, 18, 32, 0.88) 100%);
+  background: linear-gradient(165deg, var(--login-card-start) 0%, var(--login-card-end) 100%);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-glow);
   backdrop-filter: blur(20px);
@@ -1070,9 +1158,9 @@ textarea.form-control {
   padding: 0.75rem 1rem;
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fecaca;
+  background: var(--login-error-bg);
+  border: 1px solid var(--login-error-border);
+  color: var(--login-error-text);
 }
 
 .input-field {
@@ -1081,7 +1169,7 @@ textarea.form-control {
   margin-bottom: 0.875rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
-  background: rgba(15, 23, 42, 0.65);
+  background: var(--input-bg);
   color: var(--text);
   font-family: inherit;
   font-size: 0.9rem;
@@ -1098,8 +1186,8 @@ textarea.form-control {
 
 .input-field:focus {
   border-color: rgba(34, 211, 238, 0.5);
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+  background: var(--input-bg-focus);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
 }
 
 .submit-button {
@@ -1172,6 +1260,46 @@ textarea.form-control {
   }
 }
 
+/* —— Theme toggle —— */
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s,
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: rgba(34, 211, 238, 0.45);
+}
+
+[data-theme='light'] .theme-toggle:hover {
+  border-color: rgba(8, 145, 178, 0.45);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-toggle__icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
 /* —— Language switcher —— */
 .lang-switch {
   display: inline-flex;
@@ -1190,19 +1318,17 @@ textarea.form-control {
     box-shadow 0.2s;
 }
 
-.lang-switch--dark select {
+.lang-switch--dark select,
+.lang-switch--light select {
   padding: 0.45rem 0.75rem;
   border: 1px solid var(--border-strong);
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 0.75rem;
 }
 
 .lang-switch--light select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-strong);
-  background: rgba(15, 23, 42, 0.55);
-  color: var(--text);
   font-size: 0.8125rem;
   max-width: 220px;
 }

@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ThemeToggle from '../components/ThemeToggle';
 import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 
 export default function AdminDashboard() {
@@ -162,6 +163,7 @@ export default function AdminDashboard() {
       <header className="dash-header">
         <h2>🛠️ {t('dashboard.adminTitle')}</h2>
         <div className="dash-header-actions">
+          <ThemeToggle />
           <LanguageSwitcher compact />
           {user?.name && <span className="user-pill">{user.name}</span>}
           <button type="button" className="btn btn-ghost btn-xs" onClick={logout}>
@@ -204,19 +206,19 @@ export default function AdminDashboard() {
             <div className="chart-card">
               <h3 style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 600 }}>Recent SOS Requests</h3>
               {loading ? (
-                <p style={{ color: '#64748b' }}>Loading...</p>
+                <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
               ) : sosList.length === 0 ? (
-                <p style={{ color: '#64748b' }}>No SOS requests yet</p>
+                <p style={{ color: 'var(--text-muted)' }}>No SOS requests yet</p>
               ) : (
                 sosList.slice(0, 5).map(sos => (
                   <div key={sos._id} style={{
                     display: 'flex', justifyContent: 'space-between',
                     alignItems: 'center', padding: '10px 0',
-                    borderBottom: '1px solid #334155'
+                    borderBottom: '1px solid var(--border-strong)'
                   }}>
                     <div>
                       <span style={{ fontWeight: 600 }}>{sos.name}</span>
-                      <span style={{ color: '#64748b', fontSize: 13, marginLeft: 12 }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 12 }}>
                         {new Date(sos.createdAt).toLocaleString()}
                       </span>
                     </div>
@@ -374,18 +376,18 @@ export default function AdminDashboard() {
 
             {/* Alert List */}
             <div style={{
-              background: '#1e293b', borderRadius: 12,
-              border: '1px solid #334155', padding: 20,
+              background: 'var(--surface-elevated)', borderRadius: 12,
+              border: '1px solid var(--border-strong)', padding: 20,
               maxHeight: 600, overflowY: 'auto'
             }}>
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📋 Active Alerts</h3>
               {alerts.length === 0
-                ? <p style={{ color: '#64748b' }}>No alerts yet</p>
+                ? <p style={{ color: 'var(--text-muted)' }}>No alerts yet</p>
                 : translatedAlerts.map(a => (
                   <div key={a._id} style={{
-                    background: '#0f172a', borderRadius: 8,
+                    background: 'var(--surface)', borderRadius: 8,
                     padding: 12, marginBottom: 10,
-                    border: '1px solid #334155'
+                    border: '1px solid var(--border-strong)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
@@ -403,16 +405,16 @@ export default function AdminDashboard() {
                         text={a._tr?.severity ?? a.severity}
                       />
                     </div>
-                    <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 8px' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 8px' }}>
                       {a._tr?.message ?? a.message}
                     </p>
                     {a.location?.lat && (
-                      <p style={{ color: '#475569', fontSize: 11, margin: '0 0 6px' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: 11, margin: '0 0 6px' }}>
                         📍 {a.location.lat}, {a.location.lng} — radius: {a.radius}m
                       </p>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#475569', fontSize: 11 }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                         {new Date(a.createdAt).toLocaleString()}
                       </span>
                       <button type="button" className="btn btn-xs btn-danger" onClick={() => deleteAlert(a._id)}>
@@ -433,9 +435,9 @@ export default function AdminDashboard() {
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📈 SOS Last 7 Days</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={sosPerDay}>
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
+                  <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--border-strong)', color: 'var(--text)' }} />
                   <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -445,9 +447,9 @@ export default function AdminDashboard() {
               <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>📊 SOS by Status</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={statusData}>
-                  <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
+                  <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--border-strong)', color: 'var(--text)' }} />
                   <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -468,7 +470,7 @@ export default function AdminDashboard() {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
+                  <Tooltip contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--border-strong)', color: 'var(--text)' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -481,9 +483,9 @@ export default function AdminDashboard() {
                   { name: 'NGOs',    count: users.filter(u => u.role === 'ngo').length },
                   { name: 'Admins',  count: users.filter(u => u.role === 'admin').length }
                 ]}>
-                  <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
+                  <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--border-strong)', color: 'var(--text)' }} />
                   <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

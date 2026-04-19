@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "மொழி",
-    "logout": "வெளியேறு"
+    "logout": "வெளியேறு",
+    "themeUseLight": "வெளித் தோற்றம்",
+    "themeUseDark": "இருண்ட தோற்றம்"
   },
   "login": {
     "brand": "DisasterAlert",

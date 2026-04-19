@@ -1,7 +1,9 @@
 {
   "common": {
     "language": "Language",
-    "logout": "Logout"
+    "logout": "Logout",
+    "themeUseLight": "Use light theme",
+    "themeUseDark": "Use dark theme"
   },
   "login": {
     "brand": "DisasterAlert",
@@ -65,5 +67,21 @@
     "type": "Type",
     "severity": "Severity",
     "region": "Region"
+  },
+  "ngo": {
+    "mapBaseLabel": "Responder base",
+    "mapBaseHint": "Approved NGO · not a distress signal",
+    "popupPriority": "Priority",
+    "popupScores": "Scores",
+    "popupNote": "Note",
+    "legendBase": "NGO base (responder)",
+    "legendRoute": "Victim → assigned NGO",
+    "assignedTeam": "Assigned team: {{name}}",
+    "autoAssigned": "Auto-assigned",
+    "priorityScore": "Urgency score",
+    "trustScore": "Trust score",
+    "signals": "Signals",
+    "flagSuspicious": "Review: suspicious",
+    "flagUnverified": "Unverified critical"
   }
 }

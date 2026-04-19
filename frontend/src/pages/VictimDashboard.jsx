@@ -5,6 +5,7 @@ import api from '../utils/api';
 import socket from '../utils/socket';
 import SafetyChatbot from '../components/SafetyChatbot';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ThemeToggle from '../components/ThemeToggle';
 import { getSpeechLocale, transcriptMatchesSos } from '../i18n/speechLocales';
 import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 import './victim-theme.css';
@@ -121,14 +122,19 @@ export default function VictimDashboard() {
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
         try {
-          await api.post('/sos', {
+          const res = await api.post('/sos', {
             lat,
             lng,
             message: `Voice SOS: ${voiceMsg}`,
             source: 'voice',
           });
-          setSosStatus('pending');
-          setMessage(t('victim.voiceSent', { msg: voiceMsg }));
+          const sos = res.data?.sos;
+          setSosStatus(sos?.status || 'pending');
+          if (sos?.priority === 'red' && sos?.triggerCount > 1) {
+            setMessage(t('victim.escalated'));
+          } else {
+            setMessage(t('victim.voiceSent', { msg: voiceMsg }));
+          }
         } catch (err) {
           console.error('Send error:', err);
           setMessage(t('victim.voiceFailed'));
@@ -151,9 +157,9 @@ export default function VictimDashboard() {
         const { latitude: lat, longitude: lng } = position.coords;
         try {
           const res = await api.post('/sos', { lat, lng, source: 'manual' });
-          setSosStatus('pending');
           const sos = res.data?.sos;
-          if (sos?.manualTriggerCount > 1 && sos?.priority === 'red') {
+          setSosStatus(sos?.status || 'pending');
+          if (sos?.priority === 'red' && sos?.triggerCount > 1) {
             setMessage(t('victim.escalated'));
           } else {
             setMessage(t('victim.manualSent'));
@@ -226,6 +232,7 @@ export default function VictimDashboard() {
           <span>DisasterAlert</span>
         </div>
         <div className="vx-nav-actions">
+          <ThemeToggle />
           <LanguageSwitcher compact />
           <button type="button" className="btn btn-ghost btn-xs" onClick={logout}>
             {t('common.logout')}
@@ -267,6 +274,7 @@ export default function VictimDashboard() {
                 className={`vx-btn-voice${isListening ? ' is-live' : ''}`}
                 onClick={toggleVoiceSOS}
                 disabled={!user || sending}
+                aria-busy={sending}
                 title={isListening ? t('victim.micTitleListen') : t('victim.micTitleStart')}
               >
                 {isListening && <span className="vx-rec" aria-hidden />}

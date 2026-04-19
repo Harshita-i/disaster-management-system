@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
-import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, Polyline } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ThemeToggle from '../components/ThemeToggle';
 import { useTranslatedAlerts } from '../hooks/useTranslatedAlerts';
 import 'leaflet/dist/leaflet.css';
 
@@ -167,9 +168,11 @@ export default function NGODashboard() {
       setSosList((prev) => upsertSOS(prev, sos));
     });
 
-    socket.on('sos-assigned', ({ sosId }) => {
+    socket.on('sos-assigned', ({ sosId, assignedTo }) => {
       setSosList((prev) =>
-        prev.map((s) => (s._id === sosId ? { ...s, status: 'assigned', assignedTo: user?.id } : s))
+        prev.map((s) =>
+          s._id === sosId ? { ...s, status: 'assigned', assignedTo: assignedTo ?? s.assignedTo } : s
+        )
       );
     });
 
@@ -192,7 +195,9 @@ export default function NGODashboard() {
     });
 
     socket.on('sos-list-updated', (updatedList) => {
-      setSosList(normalizeSOSList(updatedList));
+      if (Array.isArray(updatedList)) {
+        setSosList(normalizeSOSList(updatedList));
+      }
     });
 
     return () => {
@@ -209,14 +214,17 @@ export default function NGODashboard() {
   const acceptSOS = async (sosId) => {
     setAssignError('');
     try {
-      await api.post(`/sos/${sosId}/assign`);
-      setSosList((prev) =>
-        prev.map((s) =>
-          s._id === sosId
-            ? { ...s, status: 'assigned', assignedTo: user?.id }
-            : s
-        )
-      );
+      const res = await api.post(`/sos/${sosId}/assign`);
+      const updated = res.data?.sos;
+      if (updated) {
+        setSosList((prev) => prev.map((s) => (s._id === sosId ? updated : s)));
+      } else {
+        setSosList((prev) =>
+          prev.map((s) =>
+            s._id === sosId ? { ...s, status: 'assigned', assignedTo: user?.id } : s
+          )
+        );
+      }
       setSelected(null);
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to assign. Try again.';
@@ -226,10 +234,13 @@ export default function NGODashboard() {
 
   const updateStatus = async (sosId, status) => {
     try {
-      await api.post(`/sos/${sosId}/status`, { status });
-      setSosList((prev) =>
-        prev.map((s) => (s._id === sosId ? { ...s, status } : s))
-      );
+      const res = await api.post(`/sos/${sosId}/status`, { status });
+      const updated = res.data?.sos;
+      if (updated) {
+        setSosList((prev) => prev.map((s) => (s._id === sosId ? updated : s)));
+      } else {
+        setSosList((prev) => prev.map((s) => (s._id === sosId ? { ...s, status } : s)));
+      }
     } catch (err) {
       alert('Failed to update status.');
     }
@@ -265,6 +276,7 @@ export default function NGODashboard() {
       <header className="dash-header">
         <h2>🚑 {t('dashboard.ngoTitle')}</h2>
         <div className="dash-header-actions">
+          <ThemeToggle />
           <LanguageSwitcher compact />
           {user?.name && <span className="user-pill">{user.name}</span>}
           <button type="button" className="btn btn-ghost btn-xs" onClick={logout}>
@@ -353,17 +365,47 @@ export default function NGODashboard() {
                           textTransform: 'uppercase',
                         }}
                       >
-                        Responder base
+                        {t('ngo.mapBaseLabel')}
                       </div>
                       <strong style={{ fontSize: 14 }}>{ngo.ngoName || ngo.name}</strong>
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                        Approved NGO · not a distress signal
+                        {t('ngo.mapBaseHint')}
                       </div>
                     </div>
                   </Popup>
                 </Marker>
               ) : null
             )}
+
+            {sosList.map((sos) => {
+              const assignee = sos.assignedTo;
+              const alat = assignee?.location?.lat;
+              const alng = assignee?.location?.lng;
+              const vlat = sos.location?.lat;
+              const vlng = sos.location?.lng;
+              const showLink =
+                assignee &&
+                alat != null &&
+                alng != null &&
+                vlat != null &&
+                vlng != null &&
+                sos.status !== 'resolved';
+              return showLink ? (
+                <Polyline
+                  key={`sos-route-${sos._id}`}
+                  positions={[
+                    [vlat, vlng],
+                    [alat, alng],
+                  ]}
+                  pathOptions={{
+                    color: '#6366f1',
+                    weight: 3,
+                    opacity: 0.75,
+                    dashArray: '8 6',
+                  }}
+                />
+              ) : null;
+            })}
 
             {sosList.map(sos =>
               sos.location?.lat && sos.location?.lng ? (
@@ -391,19 +433,33 @@ export default function NGODashboard() {
                   <Popup>
                     <div style={{ minWidth: 170 }}>
                       <strong>{sos.name}</strong><br />
-                      Priority: <span style={{
-                        color: PRIORITY_COLORS[sos.priority] || '#ef4444',
-                        fontWeight: 700
-                      }}>
+                      {t('ngo.popupPriority')}:{' '}
+                      <span
+                        style={{
+                          color: PRIORITY_COLORS[sos.priority] || '#ef4444',
+                          fontWeight: 700,
+                        }}
+                      >
                         {sos.priority?.toUpperCase()}
-                      </span><br />
-                      Status: <span style={{
-                        color: STATUS_COLORS[sos.status],
-                        fontWeight: 600
-                      }}>
+                      </span>
+                      <br />
+                      {t('ngo.popupScores')}: P {sos.priorityScore ?? '—'} · T {sos.trustScore ?? '—'}
+                      <br />
+                      Status:{' '}
+                      <span
+                        style={{
+                          color: STATUS_COLORS[sos.status],
+                          fontWeight: 600,
+                        }}
+                      >
                         {sos.status}
-                      </span><br />
-                      {sos.message && <span style={{ fontSize: 12 }}>Note: {sos.message}</span>}
+                      </span>
+                      <br />
+                      {sos.message && (
+                        <span style={{ fontSize: 12 }}>
+                          {t('ngo.popupNote')}: {sos.message}
+                        </span>
+                      )}
                     </div>
                   </Popup>
                 </CircleMarker>
@@ -575,7 +631,20 @@ export default function NGODashboard() {
               className="dash-legend-ngo"
               title="NGO base"
             />
-            <span>NGO base (responder)</span>
+            <span>{t('ngo.legendBase')}</span>
+          </div>
+          <div className="dash-legend-item">
+            <span
+              className="dash-legend-dot"
+              style={{
+                width: 22,
+                height: 0,
+                borderTop: '3px dashed #6366f1',
+                borderRadius: 0,
+                background: 'transparent',
+              }}
+            />
+            <span>{t('ngo.legendRoute')}</span>
           </div>
         </div>
       </div>
@@ -584,7 +653,13 @@ export default function NGODashboard() {
 }
 
 function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }) {
+  const { t } = useTranslation();
   const isSelected = selected?._id === sos._id;
+  const assignee = sos.assignedTo;
+  const assigneeLabel =
+    assignee && typeof assignee === 'object'
+      ? assignee.ngoName || assignee.name
+      : null;
 
   return (
     <div
@@ -622,6 +697,88 @@ function SOSCard({ sos, selected, setSelected, acceptSOS, updateStatus, locked }
         }}>
           {sos.priority}
         </span>
+      </div>
+
+      {assigneeLabel && (
+        <div
+          style={{
+            fontSize: 11,
+            color: '#a5b4fc',
+            marginBottom: 6,
+            fontWeight: 600,
+          }}
+        >
+          {t('ngo.assignedTeam', { name: assigneeLabel })}
+          {sos.autoAssigned ? ` · ${t('ngo.autoAssigned')}` : ''}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
+          marginBottom: 6,
+          fontSize: 10,
+          fontWeight: 600,
+        }}
+      >
+        <span
+          style={{
+            background: 'rgba(148,163,184,0.2)',
+            color: '#e2e8f0',
+            padding: '2px 8px',
+            borderRadius: 6,
+          }}
+        >
+          {t('ngo.priorityScore', { defaultValue: 'Urgency' })}: {sos.priorityScore ?? '—'}
+        </span>
+        <span
+          style={{
+            background: 'rgba(148,163,184,0.2)',
+            color: '#e2e8f0',
+            padding: '2px 8px',
+            borderRadius: 6,
+          }}
+        >
+          {t('ngo.trustScore', { defaultValue: 'Trust' })}: {sos.trustScore ?? '—'}
+        </span>
+        {sos.triggerCount > 1 && (
+          <span
+            style={{
+              background: 'rgba(251,191,36,0.15)',
+              color: '#fcd34d',
+              padding: '2px 8px',
+              borderRadius: 6,
+            }}
+          >
+            {t('ngo.signals', { defaultValue: 'Signals' })}: ×{sos.triggerCount}
+          </span>
+        )}
+        {sos.suspicious && (
+          <span
+            style={{
+              background: 'rgba(245,158,11,0.2)',
+              color: '#fdba74',
+              padding: '2px 8px',
+              borderRadius: 6,
+            }}
+          >
+            {t('ngo.flagSuspicious', { defaultValue: 'Review: suspicious' })}
+          </span>
+        )}
+        {sos.unverifiedCritical && (
+          <span
+            style={{
+              background: 'rgba(239,68,68,0.2)',
+              color: '#fecaca',
+              padding: '2px 8px',
+              borderRadius: 6,
+            }}
+          >
+            {t('ngo.flagUnverified', { defaultValue: 'Unverified critical' })}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>

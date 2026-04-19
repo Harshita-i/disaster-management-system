@@ -226,6 +226,8 @@ export default function VictimDashboard() {
 
     socket.on('new-alert', (alert) => {
       setAlerts((prev) => [alert, ...prev]);
+      // New danger zone may bump our open SOS from yellow → red
+      fetchMyStatus();
     });
 
     fetchMyStatus();

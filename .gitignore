@@ -1,2 +1,20 @@
 node_modules/
 .env
+
+# Python
+ml_model/venv/
+
+
+# ML models
+*.h5
+*.keras
+*.pkl
+*.joblib
+
+# Data
+*.csv
+*.json
+
+# Misc
+.DS_Store
+Thumbs.db

@@ -5,10 +5,12 @@ const SOS = require('../models/SOS');
 const User = require('../models/User');
 const Alert = require('../models/Alert');
 const { authenticate, authorize } = require('../middleware/auth');
+const { priorityFromDangerAndRepeat } = require('../utils/sosPriority');
 
 /** Active SLA timers: if assigned → not in-progress within window, reassign */
 const sosResponseTimers = new Map();
 
+/** SLA: if status stays `assigned` (not `in-progress`) for this many minutes → auto-reassign. Env 5–10, default 8. */
 function getResponseTimeoutMinutes() {
   const raw = Number(process.env.SOS_RESPONSE_TIMEOUT_MINUTES);
   const n = Number.isFinite(raw) && raw > 0 ? raw : 8;
@@ -123,9 +125,10 @@ function computeTrustAndScores({
   return { trustScore: trust, priorityScore, suspicious, unverifiedCritical };
 }
 
+/** Alerts that define a map danger zone for SOS priority (moderate+ so new broadcasts count). */
 async function getDangerAlerts() {
   return Alert.find({
-    severity: { $in: ['high', 'critical'] },
+    severity: { $in: ['moderate', 'high', 'critical'] },
     'location.lat': { $ne: null },
     'location.lng': { $ne: null },
   });
@@ -188,10 +191,12 @@ async function updateAllSOSPriorities(io) {
 
     const inZone = sosInAnyZone(sosLat, sosLng, alertZones);
 
-    const manualN = Number(sos.manualTriggerCount) || 0;
-    const voiceN = Number(sos.voiceTriggerCount) || 0;
-    const repeatBoost = manualN > 1 || voiceN > 1;
-    const newPriority = inZone || repeatBoost ? 'red' : 'yellow';
+    const newPriority = priorityFromDangerAndRepeat({
+      inDangerZone: inZone,
+      manualTriggerCount: sos.manualTriggerCount,
+      voiceTriggerCount: sos.voiceTriggerCount,
+      previousPriority: sos.priority,
+    });
 
     if (sos.priority !== newPriority) {
       sos.priority = newPriority;
@@ -211,9 +216,17 @@ async function updateAllSOSPriorities(io) {
 }
 
 /**
- * Weighted NGO pick (0–100 subscores):
- * assignmentScore =
- *   distance*0.35 + availability*0.20 + workload*0.15 + capability*0.15 + reliability*0.10 + region*0.05
+ * Auto-assign: pick approved NGO with highest assignmentScore (all subscores 0–100).
+ *
+ *   assignmentScore =
+ *     distanceScore      * 0.35 +
+ *     availabilityScore  * 0.20 +
+ *     workloadScore      * 0.15 +
+ *     capabilityScore    * 0.15 +
+ *     reliabilityScore   * 0.10 +
+ *     regionScore        * 0.05
+ *
+ * `sosPriorityScore` is available for future tuning; tie-break prefers lower open caseload.
  */
 async function findBestNgoForSos(lat, lng, sosPriorityScore, excludeIds = []) {
   const excludeOid = (excludeIds || [])
@@ -506,11 +519,12 @@ router.post('/', authenticate, authorize('victim'), async (req, res) => {
       voiceTriggerCount = triggerSource === 'voice' ? 1 : 0;
     }
 
-    // Yellow: first manual only (≤1) and/or first voice only (≤1) while outside admin danger zones.
-    // Red: inside a high/critical alert radius, OR more than one manual press, OR more than one voice send.
-    const forceRed =
-      inDangerZone || manualTriggerCount > 1 || voiceTriggerCount > 1;
-    const priority = forceRed ? 'red' : 'yellow';
+    const priority = priorityFromDangerAndRepeat({
+      inDangerZone,
+      manualTriggerCount,
+      voiceTriggerCount,
+      previousPriority: existingOpenSOS?.priority,
+    });
 
     const scores = computeTrustAndScores({
       inDangerZone,
@@ -757,7 +771,7 @@ router.post('/:id/status', authenticate, authorize('ngo', 'admin'), async (req, 
 
     const sos = await SOS.findByIdAndUpdate(
       req.params.id,
-      { status },
+      status === 'resolved' ? { status, priority: 'green' } : { status },
       { new: true }
     ).populate('assignedTo', 'name ngoName location');
 

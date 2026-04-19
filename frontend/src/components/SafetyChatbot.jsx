@@ -61,8 +61,17 @@ export default function SafetyChatbot() {
     <div className="chat-panel">
       <div className="chat-panel-header">
         <div>
+
           <div className="chat-panel-title">Safety Assistant</div>
           <div className="chat-panel-sub">Disaster safety & preparedness</div>
+{/* =======
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#e5e7eb' }}>
+            🛡️ Safety Assistant
+          </div>
+          <div style={{ fontSize: 11, color: '#9ca3af' }}>
+          Powered by Gemini (safety questions only)
+       </div>
+>>>>>>> main */}
         </div>
         <button type="button" className="chat-close" onClick={() => setOpen(false)} aria-label="Close">
           ✕

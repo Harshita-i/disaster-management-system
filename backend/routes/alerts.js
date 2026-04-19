@@ -3,6 +3,7 @@ const router  = express.Router();
 const Alert   = require('../models/Alert');
 const SOS     = require('../models/SOS');
 const { authenticate, authorize } = require('../middleware/auth');
+const { priorityFromDangerAndRepeat } = require('../utils/sosPriority');
 
 function toRadians(v) { return (v * Math.PI) / 180; }
 
@@ -18,7 +19,7 @@ function distanceInMeters(lat1, lng1, lat2, lng2) {
 }
 
 async function findSOSInAlertZone(alert) {
-  if (!['high', 'critical'].includes(alert.severity)) return [];
+  if (!['moderate', 'high', 'critical'].includes(alert.severity)) return [];
 
   const alertLat = alert.location?.lat;
   const alertLng = alert.location?.lng;
@@ -41,9 +42,9 @@ async function findSOSInAlertZone(alert) {
 
 async function updateAllSOSPriorities() {
   const alertZones = await Alert.find({
-    severity: { $in: ['high', 'critical'] },
+    severity: { $in: ['moderate', 'high', 'critical'] },
     'location.lat': { $ne: null },
-    'location.lng': { $ne: null }
+    'location.lng': { $ne: null },
   });
 
   const allSOS = await SOS.find({ status: { $ne: 'resolved' } });
@@ -60,11 +61,12 @@ async function updateAllSOSPriorities() {
       return distance <= (alert.radius || 5000);
     });
 
-    // Must match sos.js updateAllSOSPriorities: red = danger zone OR repeat on same channel (>1)
-    const manualN = Number(sos.manualTriggerCount) || 0;
-    const voiceN = Number(sos.voiceTriggerCount) || 0;
-    const repeatBoost = manualN > 1 || voiceN > 1;
-    const newPriority = inZone || repeatBoost ? 'red' : 'yellow';
+    const newPriority = priorityFromDangerAndRepeat({
+      inDangerZone: inZone,
+      manualTriggerCount: sos.manualTriggerCount,
+      voiceTriggerCount: sos.voiceTriggerCount,
+      previousPriority: sos.priority,
+    });
 
     if (sos.priority !== newPriority) {
       sos.priority = newPriority;
@@ -108,11 +110,14 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     req.io.to('ngo').emit('new-alert', alertObj);
     req.io.to('admin').emit('new-alert', alertObj);
 
-    // Recalculate all active SOS priorities after creating a new alert.
+    // Recalculate priorities so yellow SOS inside the new zone become red (see utils/sosPriority).
     await updateAllSOSPriorities();
-    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } });
+    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } })
+      .populate('assignedTo', 'name ngoName location')
+      .sort({ createdAt: -1 });
     req.io.to('ngo').emit('sos-list-updated', updatedSOS);
     req.io.to('admin').emit('sos-list-updated', updatedSOS);
+    req.io.to('victim').emit('sos-list-updated', updatedSOS);
 
     res.status(201).json({ alert: alertObj });
   } catch (err) {
@@ -126,9 +131,12 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     await Alert.findByIdAndDelete(req.params.id);
     await updateAllSOSPriorities();
-    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } });
+    const updatedSOS = await SOS.find({ status: { $ne: 'resolved' } })
+      .populate('assignedTo', 'name ngoName location')
+      .sort({ createdAt: -1 });
     req.io.to('ngo').emit('sos-list-updated', updatedSOS);
     req.io.to('admin').emit('sos-list-updated', updatedSOS);
+    req.io.to('victim').emit('sos-list-updated', updatedSOS);
     res.json({ message: 'Alert deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete alert' });

@@ -1,0 +1,21 @@
+{
+  "features": [
+    "rainfall_mm",
+    "rainfall_3day_mm",
+    "rainfall_7day_mm",
+    "temperature_celsius",
+    "humidity_percent",
+    "wind_speed_kmh",
+    "river_level_m",
+    "river_level_change",
+    "water_discharge_m3s",
+    "soil_moisture",
+    "elevation_m",
+    "distance_to_river_km",
+    "slope_degree",
+    "land_use_type",
+    "days_since_flood",
+    "flood_occurred_prev"
+  ],
+  "sequence_length": 7
+}

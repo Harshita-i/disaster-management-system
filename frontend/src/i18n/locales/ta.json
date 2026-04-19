@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "மொழி",
+    "logout": "வெளியேறு"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "உங்கள் கணக்கை உருவாக்கவும்",
+    "subtitleLogin": "தொடர உள்நுழையவும்",
+    "errorGeneric": "ஏதோ தவறு நடந்தது",
+    "placeholderName": "முழு பெயர்",
+    "placeholderEmail": "மின்னஞ்சல் முகவரி",
+    "placeholderPassword": "கடவுச்சொல்",
+    "roleVictim": "பாதிக்கப்பட்டவர் / குடிமகன்",
+    "roleNgo": "என்ஜிஓ / மீட்புக் குழு",
+    "placeholderNgoName": "என்ஜிஓ / நிறுவனப் பெயர்",
+    "pleaseWait": "காத்திருக்கவும்...",
+    "register": "பதிவு",
+    "login": "உள்நுழை",
+    "toggleHasAccount": "ஏற்கனவே கணக்கு உள்ளதா?",
+    "toggleNoAccount": "கணக்கு இல்லையா?",
+    "toggleLogin": "உள்நுழை",
+    "toggleRegister": "பதிவு"
+  },
+  "networkBg": {
+    "labelSos": "SOS",
+    "labelNgo": "என்ஜிஓ",
+    "tooltipSos": "SOS சமிக்ஞை கண்டறியப்பட்டது",
+    "tooltipNgo": "பதில் தொடங்கியது"
+  },
+  "victim": {
+    "welcome": "வரவேற்கிறோம், {{name}}",
+    "intro": "கீழே அவசர பொத்தான்கள் உள்ளன. குரல் SOS நீங்கள் தேர்ந்தெடுத்த மொழியில் தொடர்ந்து உதவி சொற்களைக் கேட்கும்.",
+    "manualSos": "கைமுறை SOS",
+    "sending": "அனுப்புகிறது...",
+    "sos": "SOS",
+    "voiceSos": "குரல் SOS",
+    "voiceActive": "குரல் SOS செயலில்",
+    "heard": "கேட்டது",
+    "micTitleListen": "கேட்கிறது… உதவி, SOS அல்லது உள்ளூர் சொற்களைச் சொல்லுங்கள்",
+    "micTitleStart": "குரல் SOS தொடங்க கிளிக் செய்யவும்",
+    "rescueStatus": "மீட்பு நிலை",
+    "alertsTitle": "எச்சரிக்கைகள்",
+    "noAlerts": "செயலில் உள்ள பேரழிவு எச்சரிக்கைகள் இல்லை",
+    "voiceSent": "\"{{msg}}\" க்கான குரல் SOS அனுப்பப்பட்டது. ரேஞ்சர்களுக்கு அறிவிக்கப்பட்டது!",
+    "voiceFailed": "குரல் SOS தோல்வி — கைமுறை பொத்தானை முயற்சிக்கவும்",
+    "manualSent": "கைமுறை SOS அனுப்பப்பட்டது!",
+    "micDenied": "மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது. உலாவி அமைப்புகளில் இயக்கவும்.",
+    "enableGpsSos": "SOS க்கு GPS ஐ இயக்கவும்",
+    "enableGps": "GPS ஐ இயக்கவும்"
+  },
+  "dashboard": {
+    "ngoTitle": "என்ஜிஓ / மீட்பு டாஷ்போர்டு",
+    "adminTitle": "நிர்வாக டாஷ்போர்டு"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "语言",
+    "logout": "退出登录"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "创建账户",
+    "subtitleLogin": "登录以继续",
+    "errorGeneric": "出了点问题",
+    "placeholderName": "姓名",
+    "placeholderEmail": "电子邮箱",
+    "placeholderPassword": "密码",
+    "roleVictim": "受灾群众 / 市民",
+    "roleNgo": "非政府组织 / 救援队",
+    "placeholderNgoName": "非政府组织 / 机构名称",
+    "pleaseWait": "请稍候...",
+    "register": "注册",
+    "login": "登录",
+    "toggleHasAccount": "已有账户？",
+    "toggleNoAccount": "没有账户？",
+    "toggleLogin": "登录",
+    "toggleRegister": "注册"
+  },
+  "networkBg": {
+    "labelSos": "求救",
+    "labelNgo": "NGO",
+    "tooltipSos": "检测到求救信号",
+    "tooltipNgo": "响应已启动"
+  },
+  "victim": {
+    "welcome": "欢迎，{{name}}",
+    "intro": "下方为紧急按钮。语音求救会持续监听您所选语言中的求助词（如帮助、求救、危险等）。",
+    "manualSos": "手动求救",
+    "sending": "发送中...",
+    "sos": "求救",
+    "voiceSos": "语音求救",
+    "voiceActive": "语音求救已开启",
+    "heard": "听到",
+    "micTitleListen": "正在聆听…请说帮助、求救、危险或当地说法",
+    "micTitleStart": "点击开始语音求救",
+    "rescueStatus": "救援状态",
+    "alertsTitle": "预警",
+    "noAlerts": "暂无活跃灾害预警",
+    "voiceSent": "已发送语音求救：\"{{msg}}\"。已通知救援人员！",
+    "voiceFailed": "语音求救失败 — 请尝试手动按钮",
+    "manualSent": "已发送手动求救！",
+    "micDenied": "麦克风权限被拒绝。请在浏览器设置中开启。",
+    "enableGpsSos": "请开启 GPS 以发送求救",
+    "enableGps": "请开启 GPS"
+  },
+  "dashboard": {
+    "ngoTitle": "非政府组织 / 救援控制台",
+    "adminTitle": "管理员控制台"
+  }
+}

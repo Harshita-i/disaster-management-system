@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "ಭಾಷೆ",
+    "logout": "ಲಾಗ್ ಔಟ್"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "ನಿಮ್ಮ ಖಾತೆಯನ್ನು ರಚಿಸಿ",
+    "subtitleLogin": "ಮುಂದುವರಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ",
+    "errorGeneric": "ಏನೋ ತಪ್ಪಾಗಿದೆ",
+    "placeholderName": "ಪೂರ್ಣ ಹೆಸರು",
+    "placeholderEmail": "ಇಮೇಲ್ ವಿಳಾಸ",
+    "placeholderPassword": "ಪಾಸ್‌ವರ್ಡ್",
+    "roleVictim": "ಬಲಿಪಶು / ನಾಗರಿಕ",
+    "roleNgo": "ಎನ್‌ಜಿಓ / ರಕ್ಷಣಾ ತಂಡ",
+    "placeholderNgoName": "ಎನ್‌ಜಿಓ / ಸಂಸ್ಥೆಯ ಹೆಸರು",
+    "pleaseWait": "ದಯವಿಟ್ಟು ನಿರೀಕ್ಷಿಸಿ...",
+    "register": "ನೋಂದಣಿ",
+    "login": "ಲಾಗಿನ್",
+    "toggleHasAccount": "ಈಗಾಗಲೇ ಖಾತೆ ಇದೆಯೇ?",
+    "toggleNoAccount": "ಖಾತೆ ಇಲ್ಲವೇ?",
+    "toggleLogin": "ಲಾಗಿನ್",
+    "toggleRegister": "ನೋಂದಣಿ"
+  },
+  "networkBg": {
+    "labelSos": "SOS",
+    "labelNgo": "ಎನ್‌ಜಿಓ",
+    "tooltipSos": "SOS ಸಂಕೇತ ಪತ್ತೆಯಾಗಿದೆ",
+    "tooltipNgo": "ಪ್ರತಿಕ್ರಿಯೆ ಸಕ್ರಿಯಗೊಂಡಿದೆ"
+  },
+  "victim": {
+    "welcome": "ಸ್ವಾಗತ, {{name}}",
+    "intro": "ಕೆಳಗೆ ತುರ್ತು ಬಟನ್‌ಗಳಿವೆ. ಧ್ವನಿ SOS ನೀವು ಆಯ್ಕೆಮಾಡಿದ ಭಾಷೆಯಲ್ಲಿ ನಿರಂತರವಾಗಿ ಸಹಾಯ ಪದಗಳನ್ನು ಕೇಳುತ್ತದೆ.",
+    "manualSos": "ಹಸ್ತಚಾಲಿತ SOS",
+    "sending": "ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ...",
+    "sos": "SOS",
+    "voiceSos": "ಧ್ವನಿ SOS",
+    "voiceActive": "ಧ್ವನಿ SOS ಸಕ್ರಿಯ",
+    "heard": "ಕೇಳಿದ್ದು",
+    "micTitleListen": "ಕೇಳುತ್ತಿದೆ… ಸಹಾಯ, SOS ಅಥವಾ ಸ್ಥಳೀಯ ಪದಗಳನ್ನು ಹೇಳಿ",
+    "micTitleStart": "ಧ್ವನಿ SOS ಪ್ರಾರಂಭಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+    "rescueStatus": "ರಕ್ಷಣಾ ಸ್ಥಿತಿ",
+    "alertsTitle": "ಎಚ್ಚರಿಕೆಗಳು",
+    "noAlerts": "ಸಕ್ರಿಯ ವಿಪತ್ತು ಎಚ್ಚರಿಕೆಗಳಿಲ್ಲ",
+    "voiceSent": "\"{{msg}}\" ಗಾಗಿ ಧ್ವನಿ SOS ಕಳುಹಿಸಲಾಗಿದೆ. ರೇಂಜರ್‌ಗಳಿಗೆ ತಿಳಿಸಲಾಗಿದೆ!",
+    "voiceFailed": "ಧ್ವನಿ SOS ವಿಫಲ — ಹಸ್ತಚಾಲಿತ ಬಟನ್ ಪ್ರಯತ್ನಿಸಿ",
+    "manualSent": "ಹಸ್ತಚಾಲಿತ SOS ಕಳುಹಿಸಲಾಗಿದೆ!",
+    "micDenied": "ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ. ಬ್ರೌಸರ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಸಕ್ರಿಯಗೊಳಿಸಿ.",
+    "enableGpsSos": "SOS ಗಾಗಿ GPS ಸಕ್ರಿಯಗೊಳಿಸಿ",
+    "enableGps": "GPS ಸಕ್ರಿಯಗೊಳಿಸಿ"
+  },
+  "dashboard": {
+    "ngoTitle": "ಎನ್‌ಜಿಓ / ರಕ್ಷಣಾ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+    "adminTitle": "ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್"
+  }
+}

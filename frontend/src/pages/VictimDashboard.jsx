@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
-import SafetyChatbot from '../components/SafetyChatbot'; 
+import SafetyChatbot from '../components/SafetyChatbot';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { getSpeechLocale, transcriptMatchesSos } from '../i18n/speechLocales';
 
 export default function VictimDashboard() {
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [sosStatus, setSosStatus] = useState(null);
   const [sending, setSending] = useState(false);
@@ -16,28 +20,6 @@ export default function VictimDashboard() {
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef(null);
 
-  useEffect(() => {
-    socket.on('sos-update', (data) => {
-      setSosStatus(data.status);
-      if (data.message) setMessage(data.message);
-    });
-
-    socket.on('new-alert', (alert) => {
-      setAlerts((prev) => [alert, ...prev]);
-    });
-
-    fetchMyStatus();
-    fetchAlerts();
-    // Auto-start voice SOS after login
-    setTimeout(() => initVoiceSOS(), 1500);
-
-    return () => {
-      socket.off('sos-update');
-      socket.off('new-alert');
-      stopVoiceSOS();
-    };
-  }, []);
-
   const initVoiceSOS = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       console.log('Speech recognition not supported');
@@ -48,7 +30,7 @@ export default function VictimDashboard() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = getSpeechLocale(i18n.language);
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -74,9 +56,7 @@ export default function VictimDashboard() {
         setShowTranscript(true);
       }
 
-      // Keyword detection - moderate yellow, backend handles red for danger zone
-      const keywords = ['help', 'sos', 'danger'];
-      if (keywords.some((keyword) => fullTranscript.toLowerCase().includes(keyword))) {
+      if (transcriptMatchesSos(fullTranscript, i18n.language)) {
         console.log('*** SOS KEYWORDS DETECTED (moderate):', fullTranscript.toUpperCase());
         stopVoiceSOS(); // STOP recording
         setTimeout(() => triggerSOSVoice(fullTranscript), 100);
@@ -87,7 +67,7 @@ export default function VictimDashboard() {
       console.error('Voice error:', event.error);
       setIsListening(false);
       if (event.error === 'not-allowed') {
-        alert('Microphone access denied. Enable in browser settings.');
+        alert(t('victim.micDenied'));
       }
       // No auto-restart - stay off
     };
@@ -146,19 +126,19 @@ export default function VictimDashboard() {
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
         try {
-          const res = await api.post('/sos', { lat, lng, message: `Voice SOS: ${voiceMsg}` });
+          await api.post('/sos', { lat, lng, message: `Voice SOS: ${voiceMsg}` });
           setSosStatus('pending');
-          setMessage(`Voice SOS sent for "${voiceMsg}". Rangers notified!`);
+          setMessage(t('victim.voiceSent', { msg: voiceMsg }));
           console.log('Voice SOS sent successfully');
         } catch (err) {
           console.error('Send error:', err);
-          setMessage('Voice SOS failed - try manual button');
+          setMessage(t('victim.voiceFailed'));
         } finally {
           setSending(false);
         }
       },
       () => {
-        alert('Enable GPS for SOS');
+        alert(t('victim.enableGpsSos'));
         setSending(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -172,15 +152,47 @@ export default function VictimDashboard() {
         const { latitude: lat, longitude: lng } = position.coords;
         await api.post('/sos', { lat, lng });
         setSosStatus('pending');
-        setMessage('Manual SOS sent!');
+        setMessage(t('victim.manualSent'));
         setSending(false);
       },
       () => {
-        alert('Enable GPS');
+        alert(t('victim.enableGps'));
         setSending(false);
       }
     );
   };
+
+  useEffect(() => {
+    socket.on('sos-update', (data) => {
+      setSosStatus(data.status);
+      if (data.message) setMessage(data.message);
+    });
+
+    socket.on('new-alert', (alert) => {
+      setAlerts((prev) => [alert, ...prev]);
+    });
+
+    fetchMyStatus();
+    fetchAlerts();
+    const voiceTimer = window.setTimeout(() => initVoiceSOS(), 1500);
+
+    return () => {
+      window.clearTimeout(voiceTimer);
+      socket.off('sos-update');
+      socket.off('new-alert');
+      stopVoiceSOS();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only socket + delayed voice start
+  }, []);
+
+  useEffect(() => {
+    const had = !!recognitionRef.current;
+    if (!had) return;
+    stopVoiceSOS();
+    const timer = window.setTimeout(() => initVoiceSOS(), 250);
+    return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- restart recognition when UI language changes
+  }, [i18n.language]);
 
   const statusColor = {
     pending: '#f59e0b', // yellow moderate
@@ -191,14 +203,36 @@ export default function VictimDashboard() {
 
   return (
 <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', fontFamily: 'sans-serif', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ position: 'absolute', top: 20, right: 20 }}>
-        <button onClick={logout} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}>
-          Logout
+      <div
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          display: 'flex',
+          gap: 16,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <LanguageSwitcher compact />
+        <button
+          onClick={logout}
+          style={{
+            background: 'transparent',
+            color: '#94a3b8',
+            border: '1px solid #334155',
+            padding: '8px 16px',
+            borderRadius: 8,
+            cursor: 'pointer',
+          }}
+        >
+          {t('common.logout')}
         </button>
       </div>
 
-      <h2 style={{ color: '#94a3b8', marginBottom: 8 }}>Welcome, {user?.name}</h2>
-      <p style={{ color: '#475569', marginBottom: 40 }}>Emergency buttons below. Voice SOS auto-listens continuously for "help", "SOS", "danger".</p>
+      <h2 style={{ color: '#94a3b8', marginBottom: 8 }}>{t('victim.welcome', { name: user?.name ?? '' })}</h2>
+      <p style={{ color: '#475569', marginBottom: 40 }}>{t('victim.intro')}</p>
 
       {/* SOS Buttons SIDE-BY-SIDE */}
       <div style={{ display: 'flex', gap: '3rem', alignItems: 'flex-end', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -215,9 +249,9 @@ export default function VictimDashboard() {
               transition: 'all 0.2s', letterSpacing: 4, userSelect: 'none'
             }}
           >
-            {sending ? 'SENDING...' : 'SOS'}
+            {sending ? t('victim.sending') : t('victim.sos')}
           </button>
-          <div style={{ color: '#94a3b8', fontSize: 14, marginTop: 12, fontWeight: 500 }}>Manual SOS</div>
+          <div style={{ color: '#94a3b8', fontSize: 14, marginTop: 12, fontWeight: 500 }}>{t('victim.manualSos')}</div>
         </div>
 
         {/* Voice SOS - GREEN MIC */}
@@ -233,17 +267,17 @@ export default function VictimDashboard() {
               transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden',
               animation: isListening ? 'pulse-mic 1.8s infinite' : 'none'
             }}
-            title={isListening ? 'Listening... Say HELP, SOS or DANGER' : 'Click or auto-start Voice SOS'}
+            title={isListening ? t('victim.micTitleListen') : t('victim.micTitleStart')}
           >
             {isListening && <div style={{ position: 'absolute', top: 4, right: 4, width: 12, height: 12, background: '#ef4444', borderRadius: '50%', animation: 'blink 1s infinite' }}></div>}
             🎤
           </button>
           <div style={{ color: isListening ? '#10b981' : '#94a3b8', fontSize: 14, marginTop: 12, fontWeight: isListening ? 'bold' : 500 }}>
-            {isListening ? '🔴 VOICE SOS ACTIVE' : 'Voice SOS'}
+            {isListening ? `🔴 ${t('victim.voiceActive')}` : t('victim.voiceSos')}
           </div>
           {showTranscript && transcript && (
             <div style={{ color: '#f8fafc', fontSize: 12, marginTop: 6, padding: '4px 8px', background: 'rgba(16,185,129,0.2)', borderRadius: 6, maxWidth: 200, fontStyle: 'italic' }}>
-              heard: "{transcript}"
+              {t('victim.heard')}: "{transcript}"
             </div>
           )}
         </div>
@@ -252,7 +286,7 @@ export default function VictimDashboard() {
       {/* Status & Alerts */}
       {sosStatus && (
         <div style={{ marginTop: 40, padding: '20px 32px', background: '#1e293b', borderRadius: 16, border: `3px solid ${statusColor[sosStatus]}`, textAlign: 'center', width: '100%', maxWidth: 420, boxShadow: `0 10px 30px ${statusColor[sosStatus]}22` }}>
-          <h3 style={{ color: '#f1f5f9', margin: '0 0 12px', fontSize: 20 }}>Rescue Status</h3>
+          <h3 style={{ color: '#f1f5f9', margin: '0 0 12px', fontSize: 20 }}>{t('victim.rescueStatus')}</h3>
           <p style={{ color: statusColor[sosStatus], fontSize: 24, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 3 }}>
             {sosStatus?.toUpperCase()}
           </p>
@@ -261,9 +295,9 @@ export default function VictimDashboard() {
       )}
 
       <div style={{ marginTop: 40, padding: '20px 32px', background: '#1e293b', borderRadius: 12, border: '1px solid #334155', width: '100%', maxWidth: 600 }}>
-        <h3 style={{ color: '#f1f5f9', margin: '0 0 20px' }}>📢 Alerts</h3>
+        <h3 style={{ color: '#f1f5f9', margin: '0 0 20px' }}>📢 {t('victim.alertsTitle')}</h3>
         {alerts.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No active disaster alerts</p>
+          <p style={{ color: '#64748b' }}>{t('victim.noAlerts')}</p>
         ) : (
           <div style={{ maxHeight: 240, overflowY: 'auto' }}>
             {alerts.map((alert) => (

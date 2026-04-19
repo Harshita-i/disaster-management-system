@@ -1,5 +1,6 @@
 // src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
@@ -7,8 +8,10 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [sosList, setSosList]     = useState([]);
@@ -161,10 +164,11 @@ export default function AdminDashboard() {
         padding: '12px 24px', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between'
       }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>🛠️ Admin Control Center</h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-  color: 'var(--text-secondary)', fontSize: 14
-          <button onClick={logout} style={btn('#334155')}>Logout</button>
+        <h2 style={{ margin: 0, fontSize: 18 }}>🛠️ {t('dashboard.adminTitle')}</h2>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <LanguageSwitcher compact />
+          <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{user?.name}</span>
+          <button onClick={logout} style={btn('#334155')}>{t('common.logout')}</button>
         </div>
       </div>
 

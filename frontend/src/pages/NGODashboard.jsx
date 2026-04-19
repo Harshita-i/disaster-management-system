@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, CircleMarker, Circle, Popup } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import socket from '../utils/socket';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import 'leaflet/dist/leaflet.css';
 
 const PRIORITY_COLORS = {
@@ -81,6 +83,7 @@ function upsertSOS(prev, sos) {
 }
 
 export default function NGODashboard() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const [sosList, setSosList] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -231,10 +234,11 @@ export default function NGODashboard() {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#ffffff' }}>🚑 NGO Rescue Dashboard</h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <h2 style={{ margin: 0, fontSize: 18, color: '#ffffff' }}>🚑 {t('dashboard.ngoTitle')}</h2>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <LanguageSwitcher compact />
           <span style={{ color: '#64748b', fontSize: 14 }}>{user?.name}</span>
-          <button onClick={logout} style={btnStyle('#334155')}>Logout</button>
+          <button onClick={logout} style={btnStyle('#334155')}>{t('common.logout')}</button>
         </div>
       </div>
 

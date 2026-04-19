@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "Idioma",
+    "logout": "Cerrar sesión"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "Crea tu cuenta",
+    "subtitleLogin": "Inicia sesión para continuar",
+    "errorGeneric": "Algo salió mal",
+    "placeholderName": "Nombre completo",
+    "placeholderEmail": "Correo electrónico",
+    "placeholderPassword": "Contraseña",
+    "roleVictim": "Víctima / Civil",
+    "roleNgo": "ONG / Equipo de rescate",
+    "placeholderNgoName": "Nombre de la ONG / organización",
+    "pleaseWait": "Espere...",
+    "register": "Registrarse",
+    "login": "Iniciar sesión",
+    "toggleHasAccount": "¿Ya tienes una cuenta?",
+    "toggleNoAccount": "¿No tienes una cuenta?",
+    "toggleLogin": "Iniciar sesión",
+    "toggleRegister": "Registrarse"
+  },
+  "networkBg": {
+    "labelSos": "SOS",
+    "labelNgo": "ONG",
+    "tooltipSos": "Señal SOS detectada",
+    "tooltipNgo": "Respuesta activada"
+  },
+  "victim": {
+    "welcome": "Bienvenido, {{name}}",
+    "intro": "Botones de emergencia abajo. El SOS por voz escucha continuamente palabras de ayuda en el idioma seleccionado.",
+    "manualSos": "SOS manual",
+    "sending": "ENVIANDO...",
+    "sos": "SOS",
+    "voiceSos": "SOS por voz",
+    "voiceActive": "SOS POR VOZ ACTIVO",
+    "heard": "oído",
+    "micTitleListen": "Escuchando… di AYUDA, SOS, PELIGRO o equivalentes",
+    "micTitleStart": "Clic para iniciar SOS por voz",
+    "rescueStatus": "Estado del rescate",
+    "alertsTitle": "Alertas",
+    "noAlerts": "No hay alertas de desastre activas",
+    "voiceSent": "SOS por voz enviado por \"{{msg}}\". ¡Rangers notificados!",
+    "voiceFailed": "SOS por voz falló — prueba el botón manual",
+    "manualSent": "¡SOS manual enviado!",
+    "micDenied": "Micrófono denegado. Actívalo en la configuración del navegador.",
+    "enableGpsSos": "Activa el GPS para el SOS",
+    "enableGps": "Activa el GPS"
+  },
+  "dashboard": {
+    "ngoTitle": "Panel ONG / rescate",
+    "adminTitle": "Panel de administración"
+  }
+}

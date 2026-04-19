@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "Language",
+    "logout": "Logout"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "Create your account",
+    "subtitleLogin": "Sign in to continue",
+    "errorGeneric": "Something went wrong",
+    "placeholderName": "Full name",
+    "placeholderEmail": "Email address",
+    "placeholderPassword": "Password",
+    "roleVictim": "Victim / Civilian",
+    "roleNgo": "NGO / Rescue Team",
+    "placeholderNgoName": "NGO / Organisation name",
+    "pleaseWait": "Please wait...",
+    "register": "Register",
+    "login": "Login",
+    "toggleHasAccount": "Already have an account?",
+    "toggleNoAccount": "Don't have an account?",
+    "toggleLogin": "Login",
+    "toggleRegister": "Register"
+  },
+  "networkBg": {
+    "labelSos": "SOS",
+    "labelNgo": "NGO",
+    "tooltipSos": "SOS signal detected",
+    "tooltipNgo": "Response activated"
+  },
+  "victim": {
+    "welcome": "Welcome, {{name}}",
+    "intro": "Emergency buttons below. Voice SOS listens continuously for help words in your selected language (e.g. help, SOS, danger — and equivalents).",
+    "manualSos": "Manual SOS",
+    "sending": "SENDING...",
+    "sos": "SOS",
+    "voiceSos": "Voice SOS",
+    "voiceActive": "VOICE SOS ACTIVE",
+    "heard": "heard",
+    "micTitleListen": "Listening… say HELP, SOS, DANGER or local equivalents",
+    "micTitleStart": "Click to start Voice SOS",
+    "rescueStatus": "Rescue Status",
+    "alertsTitle": "Alerts",
+    "noAlerts": "No active disaster alerts",
+    "voiceSent": "Voice SOS sent for \"{{msg}}\". Rangers notified!",
+    "voiceFailed": "Voice SOS failed — try manual button",
+    "manualSent": "Manual SOS sent!",
+    "micDenied": "Microphone access denied. Enable in browser settings.",
+    "enableGpsSos": "Enable GPS for SOS",
+    "enableGps": "Enable GPS"
+  },
+  "dashboard": {
+    "ngoTitle": "NGO / Rescue dashboard",
+    "adminTitle": "Admin dashboard"
+  }
+}

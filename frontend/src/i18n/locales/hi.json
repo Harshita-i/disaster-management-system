@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "भाषा",
+    "logout": "लॉग आउट"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "अपना खाता बनाएँ",
+    "subtitleLogin": "जारी रखने के लिए साइन इन करें",
+    "errorGeneric": "कुछ गलत हो गया",
+    "placeholderName": "पूरा नाम",
+    "placeholderEmail": "ईमेल पता",
+    "placeholderPassword": "पासवर्ड",
+    "roleVictim": "पीड़ित / नागरिक",
+    "roleNgo": "एनजीओ / बचाव दल",
+    "placeholderNgoName": "एनजीओ / संगठन का नाम",
+    "pleaseWait": "कृपया प्रतीक्षा करें...",
+    "register": "पंजीकरण",
+    "login": "लॉग इन",
+    "toggleHasAccount": "पहले से खाता है?",
+    "toggleNoAccount": "खाता नहीं है?",
+    "toggleLogin": "लॉग इन",
+    "toggleRegister": "पंजीकरण"
+  },
+  "networkBg": {
+    "labelSos": "एसओएस",
+    "labelNgo": "एनजीओ",
+    "tooltipSos": "एसओएस संकेत मिला",
+    "tooltipNgo": "प्रतिक्रिया सक्रिय"
+  },
+  "victim": {
+    "welcome": "स्वागत है, {{name}}",
+    "intro": "नीचे आपातकालीन बटन हैं। वॉइस एसओएस आपकी चुनी भाषा में लगातार मदद के शब्द सुनता है (जैसे मदद, एसओएस, खतरा)।",
+    "manualSos": "मैन्युअल एसओएस",
+    "sending": "भेजा जा रहा है...",
+    "sos": "एसओएस",
+    "voiceSos": "वॉइस एसओएस",
+    "voiceActive": "वॉइस एसओएस सक्रिय",
+    "heard": "सुना",
+    "micTitleListen": "सुन रहा है… मदद, एसओएस, खतरा या स्थानीय शब्द बोलें",
+    "micTitleStart": "वॉइस एसओएस शुरू करने के लिए क्लिक करें",
+    "rescueStatus": "बचाव स्थिति",
+    "alertsTitle": "अलर्ट",
+    "noAlerts": "कोई सक्रिय आपदा अलर्ट नहीं",
+    "voiceSent": "वॉइस एसओएस \"{{msg}}\" के लिए भेजा गया। रेंजर सूचित!",
+    "voiceFailed": "वॉइस एसओएस विफल — मैन्युअल बटन आज़माएँ",
+    "manualSent": "मैन्युअल एसओएस भेजा गया!",
+    "micDenied": "माइक्रोफ़ोन की अनुमति अस्वीकृत। ब्राउज़र सेटिंग में सक्षम करें।",
+    "enableGpsSos": "एसओएस के लिए GPS चालू करें",
+    "enableGps": "GPS चालू करें"
+  },
+  "dashboard": {
+    "ngoTitle": "एनजीओ / बचाव डैशबोर्ड",
+    "adminTitle": "व्यवस्थापक डैशबोर्ड"
+  }
+}

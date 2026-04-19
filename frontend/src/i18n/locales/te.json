@@ -1,0 +1,56 @@
+{
+  "common": {
+    "language": "భాష",
+    "logout": "లాగ్ అవుట్"
+  },
+  "login": {
+    "brand": "DisasterAlert",
+    "subtitleRegister": "మీ ఖాతాను సృష్టించండి",
+    "subtitleLogin": "కొనసాగించడానికి సైన్ ఇన్ చేయండి",
+    "errorGeneric": "ఏదో తప్పు జరిగింది",
+    "placeholderName": "పూర్తి పేరు",
+    "placeholderEmail": "ఇమెయిల్ చిరునామా",
+    "placeholderPassword": "పాస్‌వర్డ్",
+    "roleVictim": "బాధితుడు / పౌరుడు",
+    "roleNgo": "ఎన్‌జీఓ / రెస్క్యూ బృందం",
+    "placeholderNgoName": "ఎన్‌జీఓ / సంస్థ పేరు",
+    "pleaseWait": "దయచేసి వేచి ఉండండి...",
+    "register": "నమోదు",
+    "login": "లాగిన్",
+    "toggleHasAccount": "ఇప్పటికే ఖాతా ఉందా?",
+    "toggleNoAccount": "ఖాతా లేదా?",
+    "toggleLogin": "లాగిన్",
+    "toggleRegister": "నమోదు"
+  },
+  "networkBg": {
+    "labelSos": "SOS",
+    "labelNgo": "ఎన్‌జీఓ",
+    "tooltipSos": "SOS సంకేతం గుర్తించబడింది",
+    "tooltipNgo": "ప్రతిస్పందన ప్రారంభమైంది"
+  },
+  "victim": {
+    "welcome": "స్వాగతం, {{name}}",
+    "intro": "క్రింద అత్యవసర బటన్లు ఉన్నాయి. వాయిస్ SOS మీ ఎంచుకున్న భాషలో నిరంతరం సహాయ పదాల కోసం వింటుంది.",
+    "manualSos": "మాన్యువల్ SOS",
+    "sending": "పంపుతోంది...",
+    "sos": "SOS",
+    "voiceSos": "వాయిస్ SOS",
+    "voiceActive": "వాయిస్ SOS సక్రియం",
+    "heard": "విన్నది",
+    "micTitleListen": "వింటోంది… సహాయం, SOS లేదా స్థానిక పదాలు చెప్పండి",
+    "micTitleStart": "వాయిస్ SOS ప్రారంభించడానికి క్లిక్ చేయండి",
+    "rescueStatus": "రెస్క్యూ స్థితి",
+    "alertsTitle": "అలర్ట్‌లు",
+    "noAlerts": "సక్రియ విపత్తు అలర్ట్‌లు లేవు",
+    "voiceSent": "\"{{msg}}\" కోసం వాయిస్ SOS పంపబడింది. రేంజర్‌లకు తెలియజేయబడింది!",
+    "voiceFailed": "వాయిస్ SOS విఫలమైంది — మాన్యువల్ బటన్ ప్రయత్నించండి",
+    "manualSent": "మాన్యువల్ SOS పంపబడింది!",
+    "micDenied": "మైక్రోఫోన్ అనుమతి తిరస్కరించబడింది. బ్రౌజర్ సెట్టింగ్‌లలో ప్రారంభించండి.",
+    "enableGpsSos": "SOS కోసం GPS ప్రారంభించండి",
+    "enableGps": "GPS ప్రారంభించండి"
+  },
+  "dashboard": {
+    "ngoTitle": "ఎన్‌జీఓ / రెస్క్యూ డాష్‌బోర్డ్",
+    "adminTitle": "అడ్మిన్ డాష్‌బోర్డ్"
+  }
+}

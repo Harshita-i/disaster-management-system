@@ -1,8 +1,10 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const injectedStyles = `
   @keyframes fadeIn {
@@ -376,6 +378,7 @@ if (typeof document !== 'undefined') {
 }
 
 function NetworkBackground() {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(null);
   const [pulse, setPulse] = useState(false);
 
@@ -398,9 +401,9 @@ function NetworkBackground() {
           <div className="node-icon">🚨</div>
           {pulse && <span className="node-pulse" />}
         </div>
-        <div className="node-label">SOS</div>
+        <div className="node-label">{t('networkBg.labelSos')}</div>
         {hovered === 'civilian' && (
-          <div className="node-tooltip">SOS signal detected</div>
+          <div className="node-tooltip">{t('networkBg.tooltipSos')}</div>
         )}
       </div>
 
@@ -415,9 +418,9 @@ function NetworkBackground() {
         <div className="node green">
           <div className="node-icon">🛡️</div>
         </div>
-        <div className="node-label">NGO</div>
+        <div className="node-label">{t('networkBg.labelNgo')}</div>
         {hovered === 'ngo' && (
-          <div className="node-tooltip">Response activated</div>
+          <div className="node-tooltip">{t('networkBg.tooltipNgo')}</div>
         )}
       </div>
     </div>
@@ -425,12 +428,12 @@ function NetworkBackground() {
 }
 
 export default function Login() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [focusField, setFocusField] = useState(null);
   const [buttonRipples, setButtonRipples] = useState([]);
 
   const [form, setForm] = useState({
@@ -476,21 +479,31 @@ export default function Login() {
         if (role === 'admin') navigate('/admin');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong');
+      setError(err.response?.data?.message || t('login.errorGeneric'));
     }
     setLoading(false);
   };
 
   return (
     <div className="login-shell">
+      <div
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          zIndex: 5,
+        }}
+      >
+        <LanguageSwitcher variant="light" />
+      </div>
       <NetworkBackground />
       <div className="login-card">
         <div className="login-title">
           <span>🚨</span>
-          DisasterAlert
+          {t('login.brand')}
         </div>
         <p className="login-subtitle">
-          {isRegister ? 'Create your account' : 'Sign in to continue'}
+          {isRegister ? t('login.subtitleRegister') : t('login.subtitleLogin')}
         </p>
 
         {error && (
@@ -513,11 +526,9 @@ export default function Login() {
             <input
               className="input-field"
               name="name"
-              placeholder="Full name"
+              placeholder={t('login.placeholderName')}
               value={form.name}
               onChange={handleChange}
-              onFocus={() => setFocusField('name')}
-              onBlur={() => setFocusField(null)}
               required
             />
           )}
@@ -526,11 +537,9 @@ export default function Login() {
             className="input-field"
             name="email"
             type="email"
-            placeholder="Email address"
+            placeholder={t('login.placeholderEmail')}
             value={form.email}
             onChange={handleChange}
-            onFocus={() => setFocusField('email')}
-            onBlur={() => setFocusField(null)}
             required
           />
 
@@ -538,11 +547,9 @@ export default function Login() {
             className="input-field"
             name="password"
             type="password"
-            placeholder="Password"
+            placeholder={t('login.placeholderPassword')}
             value={form.password}
             onChange={handleChange}
-            onFocus={() => setFocusField('password')}
-            onBlur={() => setFocusField(null)}
             required
           />
 
@@ -554,8 +561,8 @@ export default function Login() {
               onChange={handleChange}
               required
             >
-              <option value="victim">Victim / Civilian</option>
-              <option value="ngo">NGO / Rescue Team</option>
+              <option value="victim">{t('login.roleVictim')}</option>
+              <option value="ngo">{t('login.roleNgo')}</option>
             </select>
           )}
 
@@ -563,11 +570,9 @@ export default function Login() {
             <input
               className="input-field"
               name="ngoName"
-              placeholder="NGO / Organisation name"
+              placeholder={t('login.placeholderNgoName')}
               value={form.ngoName}
               onChange={handleChange}
-              onFocus={() => setFocusField('ngoName')}
-              onBlur={() => setFocusField(null)}
             />
           )}
 
@@ -584,12 +589,12 @@ export default function Login() {
                 style={{ left: ripple.x, top: ripple.y, transform: 'translate(-50%, -50%)' }}
               />
             ))}
-            {loading ? 'Please wait...' : isRegister ? 'Register' : 'Login'}
+            {loading ? t('login.pleaseWait') : isRegister ? t('login.register') : t('login.login')}
           </button>
         </form>
 
         <p className="toggle-text">
-          {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+          {isRegister ? t('login.toggleHasAccount') : t('login.toggleNoAccount')}{' '}
           <span
             className="toggle-link"
             onClick={() => {
@@ -597,7 +602,7 @@ export default function Login() {
               setError('');
             }}
           >
-            {isRegister ? 'Login' : 'Register'}
+            {isRegister ? t('login.toggleLogin') : t('login.toggleRegister')}
           </span>
         </p>
       </div>

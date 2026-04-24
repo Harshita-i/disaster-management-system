@@ -72,6 +72,14 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/predictions', predictionRoutes);
 
 
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Disaster backend is running',
+    health: '/api/health'
+  });
+});
+
 // Health check — visit http://localhost:5001/api/health to confirm server is running
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Disaster management API is running' });

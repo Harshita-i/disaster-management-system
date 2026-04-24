@@ -5,6 +5,7 @@ import numpy as np
 import joblib
 import json
 import requests
+import os
 from datetime import datetime
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
@@ -205,4 +206,7 @@ def predictions():
 
 # ── RUN ──────────────────────────────────────────────────
 if __name__ == '__main__':
-    app.run(port=5002, debug=True)
+    # Render/Cloud injects PORT. Default keeps local workflow unchanged.
+    port = int(os.getenv("PORT", "5002"))
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host='0.0.0.0', port=port, debug=debug)

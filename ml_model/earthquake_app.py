@@ -5,6 +5,7 @@ import numpy as np
 import joblib
 import json
 import requests
+import os
 from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime, timedelta, timezone
 from tensorflow.keras.models import Sequential
@@ -267,4 +268,7 @@ def predictions():
 
 
 if __name__ == "__main__":
-    app.run(port=5003, debug=True)
+    # Render/Cloud injects PORT. Default keeps local workflow unchanged.
+    port = int(os.getenv("PORT", "5003"))
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)

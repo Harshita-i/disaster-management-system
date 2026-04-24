@@ -22,11 +22,29 @@ const predictionRoutes = require('./routes/predictions');
 
 const app = express();
 const server = http.createServer(app); // wrap express in http server for socket.io
+const configuredOrigins = `${process.env.CLIENT_ORIGINS || ''},${process.env.ALLOWED_ORIGINS || ''}`
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const defaultMobileOrigins = [
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
+  'ionic://localhost'
+];
+const allowAllOrigins = configuredOrigins.includes('*');
+const allowedOriginSet = new Set([...configuredOrigins, ...defaultMobileOrigins]);
+const corsOrigin = (origin, callback) => {
+  // Allow non-browser clients and same-origin requests with no Origin header.
+  if (!origin) return callback(null, true);
+  if (allowAllOrigins || allowedOriginSet.has(origin)) return callback(null, true);
+  return callback(new Error(`CORS blocked for origin: ${origin}`));
+};
 
 // ─── SOCKET.IO SETUP ─────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173', // your React dev server (Vite default)
+    origin: corsOrigin,
     methods: ['GET', 'POST']
   }
 });
@@ -38,7 +56,7 @@ app.use((req, res, next) => {
 });
 
 // ─── MIDDLEWARE ───────────────────────────────────────────
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json()); // parse JSON request bodies
 
 // ─── ROUTES ───────────────────────────────────────────────

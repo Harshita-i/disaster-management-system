@@ -104,7 +104,7 @@
 //     try {
 //       setFloodPredictions([]);
 
-//       const eqRes = await fetch('http://localhost:5003/predictions');
+//       const eqRes = await fetch('http://YOUR_SERVER_IP:5003/predictions');
 //       const eqData = await eqRes.json();
 
 //       setEarthquakePredictions(eqData.predictions || []);
@@ -115,11 +115,11 @@
 
 //   const fetchPredictions = async () => {
 //   try {
-//     const floodRes = await fetch('http://localhost:5002/predictions');
+//     const floodRes = await fetch('http://YOUR_SERVER_IP:5002/predictions');
 //     const floodData = await floodRes.json();
 //     setFloodPredictions(floodData.predictions || floodData || []);
 
-//     const eqRes = await fetch('http://localhost:5003/predictions');
+//     const eqRes = await fetch('http://YOUR_SERVER_IP:5003/predictions');
 //     const eqData = await eqRes.json();
 //     setEarthquakePredictions(eqData.predictions || eqData || []);
 //   } catch (err) {
@@ -1249,6 +1249,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
+  const floodPredictionURL =
+    import.meta.env.VITE_FLOOD_PREDICTION_URL || `http://${window.location.hostname}:5002/predictions`;
+  const earthquakePredictionURL =
+    import.meta.env.VITE_EARTHQUAKE_PREDICTION_URL || `http://${window.location.hostname}:5003/predictions`;
 
   const [alertForm, setAlertForm] = useState({
     type: 'earthquake',
@@ -1340,8 +1344,8 @@ export default function AdminDashboard() {
   const fetchPredictions = async () => {
     try {
       const [floodRes, eqRes] = await Promise.all([
-        fetch('http://localhost:5002/predictions'),
-        fetch('http://localhost:5003/predictions')
+        fetch(floodPredictionURL),
+        fetch(earthquakePredictionURL)
       ]);
 
       const floodData = await floodRes.json();

@@ -1,8 +1,13 @@
 // utils/api.js
 import axios from 'axios';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:5001/api`;
+const configuredApiBaseURL = (import.meta.env.VITE_API_BASE_URL || '').trim();
+const apiBaseURL = configuredApiBaseURL
+  ? (() => {
+      const normalized = configuredApiBaseURL.replace(/\/+$/, '');
+      return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
+    })()
+  : `http://${window.location.hostname}:5001/api`;
 
 const api = axios.create({ baseURL: apiBaseURL });
 
@@ -19,7 +24,8 @@ api.interceptors.response.use(
   err => {
     if (err.response?.status === 401) {
       localStorage.clear();
-      window.location.href = '/login';
+      // App uses HashRouter in production; keep redirect route-safe for both.
+      window.location.href = window.location.pathname.includes('#') ? '#/login' : '/#/login';
     }
     return Promise.reject(err);
   }

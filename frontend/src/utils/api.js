@@ -7,7 +7,7 @@ const apiBaseURL = configuredApiBaseURL
       const normalized = configuredApiBaseURL.replace(/\/+$/, '');
       return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
     })()
-  : `http://${window.location.hostname}:5001/api`;
+  : `${window.location.protocol}//${window.location.hostname}:5001/api`;
 
 const api = axios.create({ baseURL: apiBaseURL });
 

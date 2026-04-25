@@ -18,3 +18,18 @@ ml_model/venv/
 # Misc
 .DS_Store
 Thumbs.db
+
+# Keep required ML inference artifacts in repo for deployment
+!ml_model/metadata.json
+!ml_model/earthquake_metadata.json
+!ml_model/rf_model.pkl
+!ml_model/scaler.pkl
+!ml_model/flood_lstm_weights.weights.h5
+!ml_model/eq_rf_alert_model.pkl
+!ml_model/eq_rf_zone_model.pkl
+!ml_model/eq_scaler.pkl
+!ml_model/eq_magType_encoder.pkl
+!ml_model/eq_type_encoder.pkl
+!ml_model/eq_status_encoder.pkl
+!ml_model/eq_zone_encoder.pkl
+!ml_model/eq_lstm_weights.weights.h5

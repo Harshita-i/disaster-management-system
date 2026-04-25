@@ -1249,8 +1249,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const translatedAlerts = useTranslatedAlerts(alerts, i18n.language);
-  const floodPredictionURL =
-    import.meta.env.VITE_FLOOD_PREDICTION_URL || `${window.location.protocol}//${window.location.hostname}:5002/predictions`;
   const earthquakePredictionURL =
     import.meta.env.VITE_EARTHQUAKE_PREDICTION_URL || `${window.location.protocol}//${window.location.hostname}:5003/predictions`;
 
@@ -1341,74 +1339,38 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchFloodPredictions = async () => {
-    const url = (import.meta.env.VITE_FLOOD_PREDICTION_URL || '').trim() || floodPredictionURL;
-    const isHuggingFaceGradio =
-      url.includes('hf.space') || url.includes('/run/predict');
-
-    if (!isHuggingFaceGradio) {
-      try {
-        const floodRes = await fetch(url);
-        const floodData = await floodRes.json();
-        setFloodPredictions(
-          Array.isArray(floodData?.predictions)
-            ? floodData.predictions
-            : Array.isArray(floodData)
-              ? floodData
-              : []
-        );
-      } catch (err) {
-        console.error('Flood prediction error:', err);
-        setFloodPredictions([]);
-      }
-      return;
-    }
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        })
-      });
-
-      const result = await res.json();
-      const raw = result?.data?.[0];
-      const floodLikely = raw == 1;
-
-      setFloodPredictions([
-        {
-          region: 'Hugging Face flood model',
-          risk_score: floodLikely ? 0.9 : 0.15,
-          rainfall_mm: 0,
-          river_level_m: 0,
-          _hfOutput: raw,
-          _hfMessage: floodLikely ? 'Flood Likely 🚨' : 'No Flood ✅'
-        }
-      ]);
-    } catch (err) {
-      console.error('Flood prediction error:', err);
-      setFloodPredictions([]);
-    }
-  };
-
   const fetchPredictions = async () => {
     try {
-      await Promise.all([fetchFloodPredictions(), fetch(earthquakePredictionURL).then(async (eqRes) => {
-        const eqData = await eqRes.json();
-        setEarthquakePredictions(
-          Array.isArray(eqData?.predictions)
-            ? eqData.predictions
-            : Array.isArray(eqData)
-              ? eqData
-              : []
-        );
-      })]);
+      const floodUrl =
+        (import.meta.env.VITE_FLOOD_PREDICTION_URL || '').trim() ||
+        `${window.location.protocol}//${window.location.hostname}:5002/predictions`;
+
+      const [floodRes, eqRes] = await Promise.all([
+        fetch(floodUrl),
+        fetch(earthquakePredictionURL)
+      ]);
+
+      const floodData = await floodRes.json();
+      const eqData = await eqRes.json();
+
+      setFloodPredictions(
+        Array.isArray(floodData?.predictions)
+          ? floodData.predictions
+          : Array.isArray(floodData)
+            ? floodData
+            : []
+      );
+
+      setEarthquakePredictions(
+        Array.isArray(eqData?.predictions)
+          ? eqData.predictions
+          : Array.isArray(eqData)
+            ? eqData
+            : []
+      );
     } catch (err) {
       console.error('Prediction fetch failed:', err);
+      setFloodPredictions([]);
       setEarthquakePredictions([]);
     }
   };
@@ -1808,13 +1770,7 @@ export default function AdminDashboard() {
                         <div>
                           <b>{p.region || 'Flood Risk Zone'}</b>
                           <div style={{ fontSize: 12, color: '#64748b' }}>
-                            {p._hfMessage ? (
-                              <span>{p._hfMessage}</span>
-                            ) : (
-                              <>
-                                Rainfall: {p.rainfall_mm} mm | River: {p.river_level_m} m
-                              </>
-                            )}
+                            Rainfall: {p.rainfall_mm} mm | River: {p.river_level_m} m
                           </div>
                         </div>
 

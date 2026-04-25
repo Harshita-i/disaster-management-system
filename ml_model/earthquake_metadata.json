@@ -1,0 +1,34 @@
+{
+  "rf_feature_cols": [
+    "latitude",
+    "longitude",
+    "depth",
+    "nst",
+    "gap",
+    "dmin",
+    "rms",
+    "year",
+    "month",
+    "day",
+    "hour",
+    "minute",
+    "dayofweek",
+    "is_weekend",
+    "magType_enc",
+    "type_enc",
+    "status_enc"
+  ],
+  "lstm_features": [
+    "mag",
+    "depth",
+    "latitude",
+    "longitude",
+    "gap_hours",
+    "hour",
+    "dayofweek"
+  ],
+  "sequence_length": 10,
+  "alert_threshold": 4.5,
+  "zone_rounding": 0,
+  "model_type": "earthquake_hybrid"
+}
